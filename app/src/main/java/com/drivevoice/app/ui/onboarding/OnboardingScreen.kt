@@ -40,11 +40,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.drivevoice.app.R
+import com.drivevoice.app.service.ReadingStatus
 
 @Composable
 internal fun OnboardingScreen(
     state: SetupState,
     listenerConnected: Boolean,
+    readingStatus: ReadingStatus,
+    onReadingToggle: () -> Unit,
     actionLabel: (SetupStep) -> Int,
     onStepClick: (SetupStep) -> Unit,
 ) {
@@ -83,6 +86,11 @@ internal fun OnboardingScreen(
                 )
             }
 
+            if (state.notificationAccess == StepStatus.GRANTED || readingStatus != ReadingStatus.IDLE) {
+                HorizontalDivider(thickness = 1.dp, color = Color.White.copy(alpha = 0.12f))
+                ReadingControls(readingStatus, listenerConnected, onReadingToggle)
+            }
+
             for (step in SetupStep.entries) {
                 val status = state.status(step)
                 HorizontalDivider(thickness = 1.dp, color = Color.White.copy(alpha = 0.12f))
@@ -100,6 +108,46 @@ internal fun OnboardingScreen(
                     onAction = { onStepClick(step) },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ReadingControls(status: ReadingStatus, listenerConnected: Boolean, onToggle: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.reading_title),
+            modifier = Modifier.semantics { heading() },
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = stringResource(R.string.reading_description),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        AnimatedStatus(
+            label = when (status) {
+                ReadingStatus.IDLE -> R.string.reading_idle
+                ReadingStatus.STARTING -> R.string.reading_starting
+                ReadingStatus.WAITING -> R.string.reading_waiting
+                ReadingStatus.SPEAKING -> R.string.reading_speaking
+                ReadingStatus.FOCUS_UNAVAILABLE -> R.string.reading_focus_unavailable
+                ReadingStatus.PLAYBACK_ERROR -> R.string.reading_playback_error
+                ReadingStatus.NOT_CONNECTED -> R.string.reading_not_connected
+                ReadingStatus.NO_OFFLINE_VOICE -> R.string.reading_no_offline_voice
+                ReadingStatus.FAILED -> R.string.reading_failed
+            },
+            positive = status == ReadingStatus.WAITING || status == ReadingStatus.SPEAKING,
+        )
+        OutlinedButton(
+            onClick = onToggle,
+            enabled = status.active || listenerConnected,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            shape = RoundedCornerShape(28.dp),
+        ) {
+            Text(stringResource(if (status.active) R.string.reading_stop else R.string.reading_start))
         }
     }
 }

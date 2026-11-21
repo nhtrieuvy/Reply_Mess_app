@@ -18,6 +18,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures { compose = true }
@@ -48,4 +49,10 @@ dependencies {
 
     implementation("com.google.dagger:hilt-android:2.57.2")
     ksp("com.google.dagger:hilt-android-compiler:2.57.2")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
 }
