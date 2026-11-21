@@ -12,7 +12,6 @@ import com.drivevoice.app.data.model.VipContact
 import com.drivevoice.app.data.repository.SettingsRepository
 import com.drivevoice.app.service.BluetoothActivation
 import com.drivevoice.app.service.DriveForegroundService
-import com.drivevoice.app.service.SpeechRecognitionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
@@ -59,8 +58,12 @@ internal class DriveViewModel @Inject constructor(
 
     fun start(config: AppConfig) {
         if (config.sources.isEmpty()) return
-        val address = config.headsetAddress?.takeIf { Build.VERSION.SDK_INT >= Build.VERSION_CODES.P }
-        DriveForegroundService.start(context, config.handsFree && SpeechRecognitionManager.hasPermissions(context), config.autoSend, address)
+        val address = config.headsetAddress?.takeIf {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+                (!config.handsFree || config.headsetOnlyReplies || bluetooth.connected(it))
+        }
+        val replies = config.handsFree && (!config.headsetOnlyReplies || bluetooth.hasPermission())
+        DriveForegroundService.start(context, replies, config.autoSend, address)
     }
 
     fun stop(config: AppConfig) = activation.stop(config)
@@ -69,6 +72,7 @@ internal class DriveViewModel @Inject constructor(
     fun selectHeadset(address: String?) = change { settings.selectHeadset(address) }
     fun setAutoStart(enabled: Boolean) = change { settings.setAutoStart(enabled) }
     fun setHandsFree(enabled: Boolean) = change { settings.setHandsFree(enabled) }
+    fun setHeadsetOnlyReplies(enabled: Boolean) = change { settings.setHeadsetOnlyReplies(enabled) }
     fun setAutoSend(enabled: Boolean) = change { settings.setAutoSend(enabled) }
     fun setVipOnly(enabled: Boolean) = change { settings.setVipOnly(enabled) }
     fun removeVip(contact: VipContact) = change { settings.removeVip(contact) }

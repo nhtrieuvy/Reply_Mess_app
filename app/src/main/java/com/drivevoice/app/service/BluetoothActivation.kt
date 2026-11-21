@@ -54,12 +54,18 @@ internal class BluetoothActivation @Inject constructor(
     }
 
     fun connected(config: AppConfig, address: String, fromBroadcast: Boolean = false) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || !config.autoStart ||
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !config.autoStart ||
             config.headsetAddress != address || config.sources.isEmpty() || suppressedAddress == address ||
             !bluetooth.hasPermission()
         ) return
         if (context.packageName !in NotificationManagerCompat.getEnabledListenerPackages(context)) return
         if (!fromBroadcast && !bluetooth.connected(address)) return
+        if (!activityVisible) {
+            val notifications = context.getSystemService(NotificationManager::class.java)
+            if (!notifications.areNotificationsEnabled() ||
+                notifications.getNotificationChannel(DriveForegroundService.CHANNEL_ID)?.importance == NotificationManager.IMPORTANCE_NONE
+            ) return
+        }
 
         val replies = activityVisible && config.handsFree
         val started = DriveForegroundService.start(context, replies, config.autoSend, address, automatic = true)
@@ -78,17 +84,19 @@ internal class BluetoothActivation @Inject constructor(
         val open = PendingIntent.getActivity(
             context, 24, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
         )
-        manager.notify(
-            24,
-            NotificationCompat.Builder(context, "drive_connection")
+        val notification = NotificationCompat.Builder(context, "drive_connection")
                 .setSmallIcon(R.drawable.ic_reading)
                 .setContentTitle(context.getString(R.string.app_name))
                 .setContentText(context.getString(R.string.drive_open_for_headset))
                 .setContentIntent(open)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setAutoCancel(true)
-                .build(),
-        )
+                .build()
+        try {
+            manager.notify(24, notification)
+        } catch (_: SecurityException) {
+            // The user may revoke notifications between the permission check and posting.
+        }
     }
 }
 
@@ -99,8 +107,15 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
     @Inject internal lateinit var activation: BluetoothActivation
 
     override fun onReceive(context: Context, intent: Intent) {
-        val device = IntentCompat.getParcelableExtra(intent, BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-            ?: return
+        val action = intent.action
+        if (action != BluetoothDevice.ACTION_ACL_CONNECTED &&
+            action != BluetoothDevice.ACTION_ACL_DISCONNECTED && action != BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED
+        ) return
+        val device = try {
+            IntentCompat.getParcelableExtra(intent, BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+        } catch (_: RuntimeException) {
+            null
+        } ?: return
         val address = device.address
         if (intent.action == BluetoothDevice.ACTION_ACL_DISCONNECTED) {
             activation.disconnected(address)

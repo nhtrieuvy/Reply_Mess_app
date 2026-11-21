@@ -43,6 +43,9 @@ class DriveStateMachineTest {
         val automatic = Interaction(VoiceInput.Heard("Có"), VoiceInput.Silence)
         assertEquals(DriveResult.SENT, run(automatic, auto = true))
         assertEquals(listOf(target to "Có"), automatic.sent)
+        val timeout = Interaction(VoiceInput.Heard("Có"), VoiceInput.Timeout)
+        assertEquals(DriveResult.DONE, run(timeout, auto = true))
+        assertTrue(timeout.sent.isEmpty())
     }
 
     @Test

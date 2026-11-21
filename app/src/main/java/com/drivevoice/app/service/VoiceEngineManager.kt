@@ -1,6 +1,9 @@
 package com.drivevoice.app.service
 
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.content.ServiceConnection
 import android.media.AudioFormat
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -29,8 +32,15 @@ internal class VoiceEngineManager @Inject constructor(
     private var tts: TextToSpeech? = null
 
     suspend fun initialize(): Boolean {
+        if (!googleEngineInstalled()) return false
         val init = CompletableDeferred<Int>()
-        val engine = TextToSpeech(context, { init.complete(it) }, GOOGLE_TTS)
+        val engineContext = object : ContextWrapper(context) {
+            override fun bindService(service: Intent, connection: ServiceConnection, flags: Int): Boolean =
+                service.action == TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE &&
+                    (service.component?.packageName ?: service.`package`) == GOOGLE_TTS &&
+                    super.bindService(service, connection, flags)
+        }
+        val engine = TextToSpeech(engineContext, { init.complete(it) }, GOOGLE_TTS)
         tts = engine
         if (withTimeoutOrNull(INIT_TIMEOUT_MS) { init.await() } != TextToSpeech.SUCCESS) return false
         val voice = engine.voices.orEmpty().filter(Voice::isInstalledVietnamese)
@@ -44,7 +54,9 @@ internal class VoiceEngineManager @Inject constructor(
 
     suspend fun speak(text: String, onAmplitude: (Float) -> Unit = {}): SpeechResult {
         val engine = tts ?: return SpeechResult.OFFLINE_VOICE_UNAVAILABLE
-        if (engine.voice?.isInstalledVietnamese() != true) return SpeechResult.OFFLINE_VOICE_UNAVAILABLE
+        if (!googleEngineInstalled() || engine.voice?.isInstalledVietnamese() != true) {
+            return SpeechResult.OFFLINE_VOICE_UNAVAILABLE
+        }
 
         val id = UUID.randomUUID().toString()
         val result = CompletableDeferred<SpeechResult>()
@@ -131,6 +143,10 @@ internal class VoiceEngineManager @Inject constructor(
             }
         }
     }
+
+    private fun googleEngineInstalled(): Boolean = context.packageManager.resolveService(
+        Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE).setPackage(GOOGLE_TTS), 0,
+    ) != null
 
     fun close() {
         val engine = tts ?: return

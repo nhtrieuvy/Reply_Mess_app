@@ -18,12 +18,15 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 
 internal data class BluetoothDeviceModel(val address: String, val name: String)
 internal data class BluetoothSnapshot(
@@ -51,7 +54,7 @@ internal class BluetoothDevices @Inject constructor(@param:ApplicationContext pr
         audio.registerAudioDeviceCallback(callback, Handler(Looper.getMainLooper()))
         trySend(Unit)
         awaitClose { audio.unregisterAudioDeviceCallback(callback) }
-    }.combine(refreshSignal) { _, _ -> snapshot() }.distinctUntilChanged()
+    }.combine(refreshSignal) { _, _ -> snapshot() }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
     fun refresh() { refreshSignal.update { it + 1 } }
 
@@ -79,7 +82,10 @@ internal class BluetoothDevices @Inject constructor(@param:ApplicationContext pr
         return BluetoothSnapshot(paired, outputs, permitted)
     }
 
-    fun connected(address: String): Boolean = snapshot().outputs.any { it.address == address }
+    fun connected(address: String): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+        hasPermission() && audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {
+            it.isBluetoothMedia() && it.address == address
+        }
 
     @SuppressLint("MissingPermission")
     fun isPaired(device: BluetoothDevice): Boolean = hasPermission() && try {
@@ -88,13 +94,14 @@ internal class BluetoothDevices @Inject constructor(@param:ApplicationContext pr
         false
     }
 
-    fun canPlayOn(address: String): Boolean {
-        if (!connected(address)) return false
+    suspend fun canPlayOn(address: String): Boolean = withContext(Dispatchers.IO) {
+        if (!connected(address)) return@withContext false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val route = audio.getAudioDevicesForAttributes(messageAudioAttributes)
-            return route.isNotEmpty() && route.all { it.isBluetoothMedia() && it.address == address }
+            route.isNotEmpty() && route.all { it.isBluetoothMedia() && it.address == address }
+        } else {
+            true
         }
-        return true
     }
 
     private fun AudioDeviceInfo.isBluetoothMedia(): Boolean =

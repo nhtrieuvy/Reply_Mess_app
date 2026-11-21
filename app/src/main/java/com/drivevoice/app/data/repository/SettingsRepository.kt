@@ -33,6 +33,7 @@ internal class SettingsRepository @Inject constructor(@ApplicationContext contex
             headsetAddress = preferences[HEADSET],
             autoStart = preferences[AUTO_START] == true,
             handsFree = preferences[HANDS_FREE] == true,
+            headsetOnlyReplies = preferences[HEADSET_ONLY_REPLIES] ?: true,
             autoSend = preferences[AUTO_SEND] == true,
             vipOnly = preferences[VIP_ONLY] == true,
             vips = preferences[VIPS].orEmpty().mapNotNull(::decodeVip).toSet(),
@@ -64,6 +65,10 @@ internal class SettingsRepository @Inject constructor(@ApplicationContext contex
             it[HANDS_FREE] = enabled
             if (!enabled) it[AUTO_SEND] = false
         }
+    }
+
+    suspend fun setHeadsetOnlyReplies(enabled: Boolean) {
+        store.edit { it[HEADSET_ONLY_REPLIES] = enabled }
     }
 
     suspend fun setAutoSend(enabled: Boolean) {
@@ -111,6 +116,7 @@ internal class SettingsRepository @Inject constructor(@ApplicationContext contex
         val HEADSET = stringPreferencesKey("headset")
         val AUTO_START = booleanPreferencesKey("auto_start")
         val HANDS_FREE = booleanPreferencesKey("hands_free")
+        val HEADSET_ONLY_REPLIES = booleanPreferencesKey("headset_only_replies")
         val AUTO_SEND = booleanPreferencesKey("auto_send")
         val VIP_ONLY = booleanPreferencesKey("vip_only")
         val VIPS = stringSetPreferencesKey("vip_names")

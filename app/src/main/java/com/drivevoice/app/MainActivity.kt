@@ -23,6 +23,8 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.drivevoice.app.data.model.AppConfig
 import com.drivevoice.app.service.replayAllowed
+import com.drivevoice.app.service.ReadingStatus
+import com.drivevoice.app.service.DriveForegroundService
 import com.drivevoice.app.ui.home.DriveHomeScreen
 import com.drivevoice.app.ui.home.DriveViewModel
 import com.drivevoice.app.ui.onboarding.OnboardingRoute
@@ -105,6 +107,14 @@ class MainActivity : ComponentActivity() {
                             status.active -> driveViewModel.stop(preferences)
                             !listener -> showPermissions()
                             preferences.sources.isEmpty() -> screen = DriveScreen.SETTINGS
+                            status == ReadingStatus.NO_OFFLINE_VOICE -> {
+                                DriveForegroundService.dismissVoiceError()
+                                try {
+                                    startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+                                } catch (_: ActivityNotFoundException) {
+                                    startActivity(Intent(Settings.ACTION_SETTINGS))
+                                }
+                            }
                             else -> driveViewModel.start(preferences)
                         }
                     },
@@ -112,8 +122,7 @@ class MainActivity : ComponentActivity() {
             }
             DriveScreen.SETTINGS -> DriveSettingsScreen(
                 preferences, devices, status,
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && permissions.microphone == StepStatus.GRANTED &&
-                    permissions.bluetooth == StepStatus.GRANTED,
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && permissions.microphone == StepStatus.GRANTED,
                 issue, driveViewModel, ::back, ::showPermissions,
                 onPair = {
                     try {

@@ -3,6 +3,7 @@ package com.drivevoice.app.domain.queue
 import com.drivevoice.app.data.model.MessageBatch
 import com.drivevoice.app.data.model.MessageItem
 import com.drivevoice.app.data.model.MessageSender
+import com.drivevoice.app.data.model.NotificationLifetime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -38,7 +39,7 @@ internal class MessageQueueManager(private val scope: CoroutineScope) {
                 delay(DEBOUNCE_MS)
                 // Publish on this coroutine without cancelling the timer itself.
                 pending.remove(sender)
-                ready.trySend(MessageBatch(batch.messages.toList()))
+                sendAvailable(batch)
             }
         }
     }
@@ -46,7 +47,24 @@ internal class MessageQueueManager(private val scope: CoroutineScope) {
     private fun publish(sender: MessageSender) {
         val batch = pending.remove(sender) ?: return
         batch.timer?.cancel()
-        ready.trySend(MessageBatch(batch.messages.toList()))
+        sendAvailable(batch)
+    }
+
+    private fun sendAvailable(batch: Pending) {
+        val messages = batch.messages.filter { it.notification?.withdrawn != true }
+        if (messages.isNotEmpty()) ready.trySend(MessageBatch(messages))
+    }
+
+    fun withdraw(notification: NotificationLifetime) {
+        notification.withdraw()
+        val iterator = pending.values.iterator()
+        while (iterator.hasNext()) {
+            val batch = iterator.next()
+            if (batch.messages.removeAll { it.notification === notification } && batch.messages.isEmpty()) {
+                batch.timer?.cancel()
+                iterator.remove()
+            }
+        }
     }
 
     fun close() {

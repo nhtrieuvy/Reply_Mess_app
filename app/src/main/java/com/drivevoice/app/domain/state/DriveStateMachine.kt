@@ -18,6 +18,7 @@ internal sealed interface VoiceInput {
     data class Heard(val text: String) : VoiceInput
     data object Button : VoiceInput
     data object Silence : VoiceInput
+    data object Timeout : VoiceInput
     data object Unavailable : VoiceInput
 }
 
@@ -50,7 +51,7 @@ internal class DriveStateMachine(
                 onState(DriveState.LISTENING_REPLY)
                 when (val input = interaction.listen(ReplyWindow.DICTATION)) {
                     VoiceInput.Unavailable -> return DriveResult.RECOGNITION_UNAVAILABLE
-                    VoiceInput.Silence -> return DriveResult.DONE
+                    VoiceInput.Silence, VoiceInput.Timeout -> return DriveResult.DONE
                     VoiceInput.Button -> if (replayed) return DriveResult.DONE
                     is VoiceInput.Heard -> when (command(input.text)) {
                         Command.REPLAY -> if (replayed) return DriveResult.DONE
@@ -79,6 +80,7 @@ internal class DriveStateMachine(
                 VoiceInput.Unavailable -> return DriveResult.RECOGNITION_UNAVAILABLE
                 VoiceInput.Button -> break
                 VoiceInput.Silence -> if (autoSend) break else return DriveResult.DONE
+                VoiceInput.Timeout -> return DriveResult.DONE
                 is VoiceInput.Heard -> when (command(input.text)) {
                     Command.SEND -> break
                     Command.REPLAY -> if (replayed) return DriveResult.DONE

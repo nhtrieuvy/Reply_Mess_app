@@ -23,16 +23,19 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.text.HtmlCompat
 import com.drivevoice.app.R
 import com.drivevoice.app.data.bluetooth.BluetoothSnapshot
 import com.drivevoice.app.data.model.AppConfig
@@ -47,7 +50,7 @@ internal fun DriveSettingsScreen(
     config: AppConfig,
     devices: BluetoothSnapshot,
     status: ReadingStatus,
-    canReply: Boolean,
+    hasMicrophoneAccess: Boolean,
     issue: SettingsIssue?,
     viewModel: DriveViewModel,
     onBack: () -> Unit,
@@ -55,6 +58,7 @@ internal fun DriveSettingsScreen(
     onPair: () -> Unit,
 ) {
     var addingVip by rememberSaveable { mutableStateOf(false) }
+    var showingPrivacy by rememberSaveable { mutableStateOf(false) }
     DrivePage(stringResource(R.string.drive_settings), onBack) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 20.dp)) {
             SettingsHeading(R.string.settings_headset)
@@ -82,10 +86,10 @@ internal fun DriveSettingsScreen(
             }
             SettingSwitch(
                 stringResource(R.string.settings_auto_start), config.autoStart,
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && devices.permissionGranted &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && devices.permissionGranted &&
                     devices.paired.any { it.address == config.headsetAddress },
             ) { viewModel.setAutoStart(it) }
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) SettingsHint(R.string.settings_auto_version)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) SettingsHint(R.string.settings_auto_version)
 
             SettingsDivider()
             SettingsHeading(R.string.settings_sources)
@@ -109,12 +113,20 @@ internal fun DriveSettingsScreen(
 
             SettingsDivider()
             SettingsHeading(R.string.settings_reply)
-            SettingSwitch(stringResource(R.string.reply_enable), config.handsFree, canReply && !status.active) {
+            SettingSwitch(stringResource(R.string.reply_enable), config.handsFree, !status.active && (hasMicrophoneAccess || config.handsFree)) {
                 viewModel.setHandsFree(it)
             }
-            if (!canReply) SettingsHint(R.string.reply_requirements)
+            if (!hasMicrophoneAccess) SettingsHint(R.string.reply_requirements)
             if (config.handsFree) {
-                SettingSwitch(stringResource(R.string.reply_auto_send), config.autoSend, canReply && !status.active) {
+                SettingSwitch(
+                    stringResource(R.string.reply_headset_only), config.headsetOnlyReplies, !status.active,
+                    viewModel::setHeadsetOnlyReplies,
+                )
+                SettingsHint(R.string.reply_mic_selection_hint)
+                if (config.headsetOnlyReplies && !devices.permissionGranted) {
+                    SettingsHint(R.string.reply_bluetooth_permission)
+                }
+                SettingSwitch(stringResource(R.string.reply_auto_send), config.autoSend, hasMicrophoneAccess && !status.active) {
                     viewModel.setAutoSend(it)
                 }
             }
@@ -123,7 +135,23 @@ internal fun DriveSettingsScreen(
             }
             SettingsDivider()
             TextButton(onClick = onPermissions) { Text(stringResource(R.string.setup_title)) }
+            TextButton(onClick = { showingPrivacy = true }) { Text(stringResource(R.string.privacy_title)) }
         }
+    }
+
+    if (showingPrivacy) {
+        val context = LocalContext.current
+        val policy = remember(context) {
+            context.assets.open("privacy-policy.html").bufferedReader().use {
+                val body = it.readText().substringAfter("<body>").substringBefore("</body>")
+                HtmlCompat.fromHtml(body, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { showingPrivacy = false },
+            text = { Text(policy, Modifier.verticalScroll(rememberScrollState())) },
+            confirmButton = { TextButton(onClick = { showingPrivacy = false }) { Text(stringResource(R.string.close)) } },
+        )
     }
 
     if (addingVip) {

@@ -12,6 +12,7 @@ internal data class AppConfig(
     val headsetAddress: String? = null,
     val autoStart: Boolean = false,
     val handsFree: Boolean = false,
+    val headsetOnlyReplies: Boolean = true,
     val autoSend: Boolean = false,
     val vipOnly: Boolean = false,
     val vips: Set<VipContact> = emptySet(),

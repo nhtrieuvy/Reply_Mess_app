@@ -3,9 +3,11 @@ package com.drivevoice.app.data.notification
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.Process
+import android.os.SystemClock
 import android.service.notification.StatusBarNotification
 import androidx.annotation.MainThread
 import com.drivevoice.app.data.model.MessageItem
+import com.drivevoice.app.data.model.NotificationLifetime
 import com.drivevoice.app.data.model.ReplyTarget
 import com.drivevoice.app.domain.queue.MessageQueueManager
 import javax.inject.Inject
@@ -23,11 +25,13 @@ internal class NotificationInbox @Inject constructor() {
 
     private val snapshots = LinkedHashMap<String, Seen>(MAX_NOTIFICATIONS, 0.75f, true)
     private val replies = LinkedHashMap<String, Reply>(MAX_NOTIFICATIONS, 0.75f, true)
+    private val lifetimes = LinkedHashMap<String, NotificationLifetime>(MAX_NOTIFICATIONS, 0.75f, true)
     private var replyVersion = 0L
     private var snapshotReader: (() -> Array<StatusBarNotification>)? = null
     private var queue: MessageQueueManager? = null
     private var repliesEnabled = false
     private var accepts: (MessageItem) -> Boolean = { true }
+    private var onWithdrawal: (NotificationLifetime) -> Unit = {}
 
     @MainThread
     fun bind(reader: () -> Array<StatusBarNotification>) {
@@ -44,6 +48,7 @@ internal class NotificationInbox @Inject constructor() {
     fun start(
         newQueue: MessageQueueManager,
         enableReplies: Boolean = false,
+        onWithdrawn: (NotificationLifetime) -> Unit = {},
         filter: (MessageItem) -> Boolean = { true },
     ): Boolean {
         val reader = snapshotReader ?: return false
@@ -60,6 +65,7 @@ internal class NotificationInbox @Inject constructor() {
         queue = newQueue
         repliesEnabled = enableReplies
         accepts = filter
+        onWithdrawal = onWithdrawn
         return true
     }
 
@@ -68,6 +74,7 @@ internal class NotificationInbox @Inject constructor() {
         val destination = queue ?: return
         val snapshot = parse(notification) ?: run {
             replies.remove(notification.key)
+            withdraw(notification.key)
             return
         }
         val previous = snapshots[notification.key]?.takeIf { it.styled == snapshot.usesMessagingStyle }
@@ -83,15 +90,20 @@ internal class NotificationInbox @Inject constructor() {
         val reply = if (repliesEnabled && (accepted.isNotEmpty() || notification.key in replies)) {
             updateReply(notification, snapshot)
         } else null
+        if (accepted.isEmpty()) return
+        val lifetime = lifetimes.getOrPut(notification.key) { NotificationLifetime() }
+        if (lifetimes.size > MAX_NOTIFICATIONS) withdraw(lifetimes.keys.first())
+        val receivedAt = SystemClock.elapsedRealtime()
         accepted.forEach {
             val target = reply?.target?.takeIf { _ -> it.item.sender.conversation == reply.conversation }
-            destination.enqueue(it.item.copy(reply = target))
+            destination.enqueue(it.item.copy(reply = target, notification = lifetime, receivedAtMs = receivedAt))
         }
     }
 
     @MainThread
     fun removed(key: String) {
         replies.remove(key)
+        withdraw(key)
         // A styled notification can be reposted with the same conversation history.
         if (snapshots[key]?.styled == false) snapshots.remove(key)
     }
@@ -101,8 +113,17 @@ internal class NotificationInbox @Inject constructor() {
         queue = null
         snapshots.clear()
         replies.clear()
+        lifetimes.values.forEach(NotificationLifetime::withdraw)
+        lifetimes.clear()
         repliesEnabled = false
         accepts = { true }
+        onWithdrawal = {}
+    }
+
+    private fun withdraw(key: String) {
+        val lifetime = lifetimes.remove(key) ?: return
+        queue?.withdraw(lifetime)
+        onWithdrawal(lifetime)
     }
 
     @MainThread

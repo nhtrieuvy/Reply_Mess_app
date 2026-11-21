@@ -1,6 +1,8 @@
-# DriveVoice · Giai đoạn 4
+# DriveVoice 1.0.1
 
-Ứng dụng Android Kotlin đọc tin nhắn mới bằng tiếng Việt từ Zalo, Messenger và Telegram. Tính năng trả lời rảnh tay dùng tai nghe Bluetooth, nhận diện tiếng Việt trên thiết bị và thao tác trả lời của thông báo gốc. Chế độ đọc hỗ trợ Android 8 trở lên, chế độ trả lời yêu cầu Android 12 trở lên.
+Ứng dụng Android Kotlin đọc tin nhắn mới bằng tiếng Việt từ Zalo, Messenger và Telegram. Tính năng trả lời rảnh tay ưu tiên micrô tai nghe Bluetooth và có thể dùng micrô điện thoại. Nhận diện tiếng Việt chạy trên thiết bị và phản hồi dùng thao tác trả lời của thông báo gốc. Chế độ đọc hỗ trợ Android 8 trở lên, chế độ trả lời yêu cầu Android 12 trở lên.
+
+Hướng dẫn đóng gói, kiểm thử thiết bị thật và khai báo Google Play nằm trong [hồ sơ phát hành](RELEASE.md).
 
 ## Drive Mode và cài đặt
 
@@ -9,7 +11,8 @@ Màn hình chính dùng nền OLED đen, Space Grotesk và một màu nhấn the
 - Chạm vùng dưới để **BẮT ĐẦU**, **DỪNG NGAY** khi đang xử lý tin hoặc **ĐỌC LẠI** tin vừa đọc trong cùng phiên. Đọc lại qua màn hình chỉ phát lại lời đọc. Có thể dừng phiên từ Cài đặt hoặc thông báo trạng thái.
 - Trong **Cài đặt**, chọn ứng dụng nguồn, tai nghe đã ghép nối, chế độ trả lời và danh sách VIP. Bộ lọc VIP so khớp tên hiển thị theo từng ứng dụng. So khớp giữ dấu tiếng Việt và bỏ qua khác biệt hoa thường hoặc khoảng trắng lặp. Hai người trùng tên hiển thị trong cùng ứng dụng sẽ cùng khớp.
 - DataStore lưu lựa chọn của người dùng. Nội dung tin, tên người gửi vừa đọc, bản nháp và quyền trả lời tạm thời nằm trong RAM. Thay đổi nguồn hoặc VIP áp dụng cho tin tiếp theo và tin còn trong hàng đợi. Lựa chọn tai nghe và cấu hình micrô áp dụng khi bắt đầu phiên mới.
-- Với **Tự bật khi kết nối thiết bị**, DriveVoice chờ tuyến âm thanh của tai nghe đã chọn rồi bật phiên đọc. Ngắt tai nghe sẽ dừng phiên gắn với thiết bị. Nếu hệ thống chặn mở dịch vụ từ nền, DriveVoice dùng thông báo mời mở ứng dụng khi đã được cấp quyền hiển thị thông báo. Khi ở nền, tự bật chỉ cho phép đọc. Muốn dùng micrô, bắt đầu phiên mới khi DriveVoice đang hiển thị. Android 9–12L cần chọn tai nghe làm đầu ra phương tiện trong hệ thống. [Giới hạn dịch vụ nền Android](https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start)
+- **Tự bật khi kết nối thiết bị** dùng trên Android 13 trở lên, nơi DriveVoice có thể kiểm tra đầu ra Android dự định dùng. Khi ở nền, tính năng cần bật thông báo trạng thái và chỉ mở phiên đọc. Nếu hệ thống chặn khởi chạy từ nền, thông báo mời bạn mở ứng dụng. Muốn dùng micrô, bắt đầu phiên mới khi DriveVoice đang hiển thị. Ngắt tai nghe đã chọn sẽ dừng phiên gắn với tai nghe. [Giới hạn dịch vụ nền Android](https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start)
+- Tin chờ quá 60 giây được bỏ qua. Đọc lại khả dụng tối đa 2 phút kể từ khi nhận tin còn hiệu lực. Thu hồi thông báo hủy lượt đang xử lý nếu lượt đó chứa tin bị thu hồi. Phiên nghỉ sau 30 phút không xử lý tin nhắn.
 
 ## Build và cài đặt
 
@@ -51,7 +54,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## Kiểm thử trả lời rảnh tay trên điện thoại
 
 1. Khi đã dừng xe, ghép nối một tai nghe có micrô Bluetooth SCO hoặc LE Audio và bật cả âm thanh phương tiện lẫn âm thanh cuộc gọi cho tai nghe. Cài dữ liệu **Tiếng Việt (Việt Nam)** cho cả bộ đọc TTS và bộ nhận diện giọng nói ngoại tuyến của thiết bị. Đây là hai gói dữ liệu riêng.
-2. Cấp quyền **Micrô**, **Thiết bị ở gần** và **Quyền truy cập thông báo**. Trong **Cài đặt**, bật **Trả lời rảnh tay bằng tai nghe Bluetooth** và giữ tùy chọn tự gửi tắt. Quay về Home rồi chọn **BẮT ĐẦU**.
+2. Cấp quyền **Micrô**, **Thiết bị ở gần** và **Quyền truy cập thông báo**. Trong **Cài đặt**, bật **Trả lời rảnh tay** và **Chỉ trả lời khi kết nối tai nghe** và giữ tùy chọn tự gửi tắt. Quay về Home rồi chọn **BẮT ĐẦU**.
 3. Dùng tài khoản thử gửi một tin có hiện nút **Trả lời** trên thông báo của ứng dụng nguồn. Khi nghe tiếng bíp sau lượt đọc, nói một câu ngắn. DriveVoice chờ tối đa 6 giây để nhận bản nháp.
 4. Đợi DriveVoice đọc tên cuộc trò chuyện và toàn bộ bản nháp. Sau tiếng bíp tiếp theo, nói **Gửi** trong 4 giây. Kiểm tra ứng dụng nhắn tin gốc và thiết bị của người nhận để xác nhận đã gửi. Tiếng xác nhận và trạng thái DriveVoice báo rằng thao tác đã được chuyển cho ứng dụng nguồn.
 
@@ -61,10 +64,13 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | Nói **Đọc lại** trong cửa sổ xác nhận | Đọc lại bản nháp một lần rồi xin xác nhận lại. |
 | Bấm Play/Pause hoặc nút nhận cuộc gọi tương ứng trong cửa sổ xác nhận | Xác nhận gửi nếu Android chuyển phím đến phiên media của DriveVoice. Khả năng nhận phím thay đổi theo tai nghe và trình phát đang hoạt động. |
 | Nói **Hủy**, nói một câu khác, hoặc im lặng khi tắt tự gửi | Kết thúc lượt trả lời và bỏ bản nháp. |
-| Bật rõ tùy chọn tự gửi trước khi bắt đầu phiên, đọc bản nháp rồi giữ im lặng trong bước xác nhận | Gửi sau 4 giây nếu micrô đã sẵn sàng, không phát hiện tiếng nói, tai nghe còn kết nối và thao tác trả lời còn hiệu lực. Nếu báo lỗi nhận diện, DriveVoice bỏ bản nháp. |
+| Bật rõ tùy chọn tự gửi trước khi bắt đầu phiên, đọc bản nháp rồi giữ im lặng trong bước xác nhận | Gửi sau 4 giây nếu bộ nhận diện báo im lặng, nguồn micrô đã chọn còn khả dụng và thao tác trả lời còn hiệu lực. Nếu hết hạn mà thiếu tín hiệu im lặng hoặc xảy ra lỗi, DriveVoice bỏ bản nháp. |
 | Xóa thông báo gốc trên điện thoại khác đồng bộ cùng tài khoản hoặc nhờ người hỗ trợ xóa ngay trên máy thử trước khi xác nhận | Nếu Android đã thu hồi thông báo, DriveVoice báo không thể trả lời. |
 | Thử một thông báo thiếu ô trả lời, thiếu tên nhóm hoặc thiết bị thiếu mô hình nhận diện ngoại tuyến | Phiên vẫn có thể đọc tin. DriveVoice bỏ qua bước ghi bản nháp khi thông báo thiếu thao tác trả lời phù hợp. |
 | Ngắt tai nghe trong lúc ghi hoặc xác nhận | Hủy nhận diện hoặc từ chối gửi. |
+| Tắt **Chỉ trả lời khi kết nối tai nghe** rồi bắt đầu phiên khi không có tai nghe | Dùng micrô điện thoại khi đã cấp quyền Micrô, kể cả khi từ chối quyền Thiết bị ở gần hoặc tai nghe đã lưu đang ngắt. |
+| Bật lại **Chỉ trả lời khi kết nối tai nghe** và thử lại khi không có tai nghe | Chỉ đọc, không mở micrô điện thoại. |
+| Tắt công tắc và kết nối tai nghe có micrô hợp lệ | Ưu tiên micrô tai nghe. Kiểm tra nguồn micrô hiển thị khi đang nghe. Nếu mất tuyến, bỏ bản nháp. |
 
 Kiểm tra riêng cả Zalo, Messenger và Telegram. Mỗi ứng dụng quyết định có cung cấp thao tác trả lời theo phiên bản, tài khoản, loại cuộc trò chuyện và trạng thái khóa hay không. [Trả lời trực tiếp từ thông báo Android](https://developer.android.com/develop/ui/views/notifications/build-notification#reply-action)
 
@@ -83,7 +89,7 @@ Kiểm tra riêng cả Zalo, Messenger và Telegram. Mỗi ứng dụng quyết 
 
 | Thao tác | Kết quả mong đợi |
 | --- | --- |
-| Mở DriveVoice sau khi cài mới rồi chọn **CẤP QUYỀN** | Home dẫn đến màn hình thiết lập. Hộp thoại hệ thống mở khi chọn một bước. |
+| Mở DriveVoice sau khi cài mới rồi chọn **CẤP QUYỀN** | Home dẫn đến màn hình thiết lập. Quyền truy cập thông báo và micrô hiện giải thích dữ liệu trước khi chuyển tới Android. Chọn **Để sau** để đóng mà chưa xin quyền. |
 | Mở mục **Quyền truy cập thông báo**, bật DriveVoice và quay lại | Hiện đã cấp quyền. Khi Android kết nối listener, hàng này đổi thành **Dịch vụ đã kết nối**. |
 | Từ chối quyền micrô rồi thử lại | Màn hình giữ trạng thái **Chưa cấp**. Nếu Android chặn hỏi lại, nút đổi sang **Mở cài đặt** và mở thông tin ứng dụng. |
 | Cấp micrô, rồi mở lại ứng dụng sau khi thu hồi trong Cài đặt | Trạng thái cập nhật theo quyền hiện tại. Có thể kiểm tra thêm bằng lựa chọn **Chỉ lần này** trên Android 11 trở lên. |
@@ -101,4 +107,4 @@ Nếu Android hiển thị **Chế độ cài đặt bị hạn chế** cho bả
 - Bộ lọc ưu tiên `MessagingStyle`. Nếu ứng dụng nguồn chỉ cung cấp tiêu đề và nội dung, DriveVoice dùng hai trường đó và loại các mẫu tổng hợp hoặc đang đồng bộ đã biết. Định dạng, nội dung bị ẩn và khả năng nhận diện người gửi còn tùy phiên bản của ứng dụng nguồn.
 - Tin nhắn, dấu vết chống đọc lặp và hàng đợi chỉ tồn tại trong RAM. Mỗi tin được giới hạn 350 ký tự, mỗi nhóm tối đa 6 tin và khoảng 700 ký tự nội dung. Khi hàng đợi đầy, nhóm cũ nhất đang chờ bị loại để giới hạn bộ nhớ. Thông báo của DriveVoice chỉ hiện trạng thái phiên đọc.
 - DriveVoice yêu cầu engine TTS của Google và chỉ gửi văn bản khi Android báo giọng tiếng Việt đã cài và hoạt động ngoại tuyến. Android quản lý đầu ra âm thanh. Manifest không yêu cầu quyền `INTERNET` hay quyền miễn tối ưu hóa pin trực tiếp. [API TextToSpeech](https://developer.android.com/reference/android/speech/tts/TextToSpeech)
-- Nhận diện dùng `createOnDeviceSpeechRecognizer` với `vi-VN`. DriveVoice yêu cầu tuyến âm thanh giao tiếp Bluetooth và trả lại tuyến mặc định sau mỗi cửa sổ. Bản nháp, khóa thông báo và quyền gửi tạm thời chỉ tồn tại trong RAM. [SpeechRecognizer](https://developer.android.com/reference/android/speech/SpeechRecognizer) · [AudioManager](https://developer.android.com/reference/android/media/AudioManager)
+- Nhận diện dùng `createOnDeviceSpeechRecognizer` với `vi-VN`. DriveVoice yêu cầu tuyến âm thanh giao tiếp tương ứng với nguồn micrô và giải phóng tuyến sau mỗi cửa sổ. Bản nháp, khóa thông báo và quyền gửi tạm thời chỉ tồn tại trong RAM. [SpeechRecognizer](https://developer.android.com/reference/android/speech/SpeechRecognizer) · [AudioManager](https://developer.android.com/reference/android/media/AudioManager)

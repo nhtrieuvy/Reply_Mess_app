@@ -18,7 +18,20 @@ internal data class MessageItem(
     val displayName: String,
     val text: String,
     val reply: ReplyTarget? = null,
+    val notification: NotificationLifetime? = null,
+    val receivedAtMs: Long? = null,
 )
+
+/** Main-thread token for one posted notification, independent of a reused Android key. */
+internal class NotificationLifetime {
+    var withdrawn = false
+        private set
+
+    fun withdraw() { withdrawn = true }
+}
+
+internal fun MessageItem.isAvailable(nowMs: Long, maxAgeMs: Long): Boolean =
+    notification?.withdrawn != true && receivedAtMs?.let { nowMs - it < maxAgeMs } != false
 
 internal data class ReplyTarget(val notificationKey: String, val version: Long, val label: String)
 

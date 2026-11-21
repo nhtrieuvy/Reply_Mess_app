@@ -63,57 +63,80 @@ internal class SpeechRecognitionManager @Inject constructor(
         }
     }
 
-    fun isHeadsetConnected(deviceId: Int): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-        hasPermissions(context) && audio.availableCommunicationDevices.any { it.id == deviceId && it.isHeadset() }
+    fun selectMic(
+        preferredAddress: String?,
+        headsetOnly: Boolean,
+        requiredAddress: String?,
+    ): ReplyMicSelection {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !hasPermissions(context)) {
+            return ReplyMicSelection.Unavailable
+        }
+        val available = audio.availableCommunicationDevices
+        val headsets = if (hasBluetoothPermission(context)) {
+            available.filter { it.isHeadset() && (requiredAddress == null || it.address == requiredAddress) }
+        } else emptyList()
+        val phone = available.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+            ?: available.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }
+        return selectReplyMic(
+            headsetIds = headsets.map { it.id },
+            preferredIds = headsets.filter { it.address == preferredAddress }.map { it.id },
+            currentId = audio.communicationDevice?.id,
+            phoneId = phone?.id,
+            headsetOnly = headsetOnly,
+        )
+    }
 
-    data class Capture(val input: VoiceInput, val headsetId: Int? = null)
+    fun isMicAvailable(mic: ReplyMic): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && hasPermissions(context) &&
+            !audio.isMicrophoneMute && findDevice(mic) != null
 
     suspend fun listen(
         window: ReplyWindow,
-        buttons: MediaButtonHandler,
-        headsetId: Int?,
-        preferredAddress: String?,
+        mic: ReplyMic,
+        buttons: MediaButtonHandler?,
         onAmplitude: (Float?) -> Unit,
-    ): Capture {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !isAvailable()) return Capture(VoiceInput.Unavailable)
+    ): VoiceInput {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !isAvailable()) return VoiceInput.Unavailable
         return try {
-            capture(window, buttons, headsetId, preferredAddress, onAmplitude)
+            capture(window, mic, buttons, onAmplitude)
         } catch (_: SecurityException) {
-            Capture(VoiceInput.Unavailable)
+            VoiceInput.Unavailable
         } catch (_: IllegalStateException) {
-            Capture(VoiceInput.Unavailable)
+            VoiceInput.Unavailable
         } catch (_: UnsupportedOperationException) {
-            Capture(VoiceInput.Unavailable)
+            VoiceInput.Unavailable
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun findDevice(mic: ReplyMic): AudioDeviceInfo? {
+        if (mic.bluetooth && !hasBluetoothPermission(context)) return null
+        return audio.availableCommunicationDevices.firstOrNull {
+            it.id == mic.id && (if (mic.bluetooth) it.isHeadset() else it.isPhoneOutput())
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private suspend fun capture(
         window: ReplyWindow,
-        buttons: MediaButtonHandler,
-        headsetId: Int?,
-        preferredAddress: String?,
+        mic: ReplyMic,
+        buttons: MediaButtonHandler?,
         onAmplitude: (Float?) -> Unit,
-    ): Capture {
-        val available = audio.availableCommunicationDevices.filter {
-            it.isHeadset() && (preferredAddress == null || it.address == preferredAddress)
-        }
-        val selected = if (headsetId == null) {
-            available.firstOrNull { it.id == audio.communicationDevice?.id } ?: available.singleOrNull()
-        } else available.firstOrNull { it.id == headsetId }
-        if (selected == null || audio.mode != AudioManager.MODE_NORMAL) return Capture(VoiceInput.Unavailable)
+    ): VoiceInput {
+        if (audio.mode != AudioManager.MODE_NORMAL || audio.isMicrophoneMute) return VoiceInput.Unavailable
+        val selected = findDevice(mic) ?: return VoiceInput.Unavailable
 
         audio.mode = AudioManager.MODE_IN_COMMUNICATION
         var acquiredRoute = false
         try {
             acquiredRoute = audio.setCommunicationDevice(selected)
-            if (!acquiredRoute) return Capture(VoiceInput.Unavailable)
+            if (!acquiredRoute) return VoiceInput.Unavailable
             val connected = withTimeoutOrNull(2_500) {
                 while (audio.communicationDevice?.id != selected.id) delay(50)
                 true
             }
-            if (connected != true || !routeReady(selected.id)) return Capture(VoiceInput.Unavailable)
-            return Capture(recognize(window, buttons, selected.id, onAmplitude), selected.id)
+            if (connected != true || !routeReady(mic)) return VoiceInput.Unavailable
+            return recognize(window, buttons, mic, onAmplitude)
         } finally {
             try {
                 if (acquiredRoute) audio.clearCommunicationDevice()
@@ -126,8 +149,8 @@ internal class SpeechRecognitionManager @Inject constructor(
     @RequiresApi(Build.VERSION_CODES.S)
     private suspend fun recognize(
         window: ReplyWindow,
-        buttons: MediaButtonHandler,
-        deviceId: Int,
+        buttons: MediaButtonHandler?,
+        mic: ReplyMic,
         onAmplitude: (Float?) -> Unit,
     ): VoiceInput =
         coroutineScope {
@@ -147,17 +170,18 @@ internal class SpeechRecognitionManager @Inject constructor(
             var recognizer: SpeechRecognizer? = null
             try {
                 playTone(AudioManager.STREAM_VOICE_CALL, ToneGenerator.TONE_PROP_BEEP)
-                if (outcome.isCompleted || !routeReady(deviceId)) return@coroutineScope VoiceInput.Unavailable
+                if (outcome.isCompleted || !routeReady(mic)) return@coroutineScope VoiceInput.Unavailable
                 val engine = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
                 recognizer = engine
                 var ready = false
                 var heardSpeech = false
+                var silenceReported = false
                 engine.setRecognitionListener(object : RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) {
                         if (ready || outcome.isCompleted) return
                         ready = true
                         onAmplitude(0f)
-                        buttons.open { outcome.complete(VoiceInput.Button) }
+                        buttons?.open { outcome.complete(VoiceInput.Button) }
                     }
                     override fun onBeginningOfSpeech() { heardSpeech = true }
                     override fun onRmsChanged(rmsdB: Float) {
@@ -178,25 +202,32 @@ internal class SpeechRecognitionManager @Inject constructor(
                         outcome.complete(text?.takeIf { it.isNotBlank() }?.let { VoiceInput.Heard(it) } ?: VoiceInput.Unavailable)
                     }
                     override fun onError(error: Int) {
-                        if (error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT || !ready || heardSpeech) {
+                        if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT && ready && !heardSpeech) {
+                            silenceReported = true
+                        } else {
                             outcome.complete(VoiceInput.Unavailable)
                         }
                     }
                 })
                 val watch = launch {
-                    while (routeReady(deviceId)) delay(100)
+                    while (routeReady(mic)) delay(100)
                     outcome.complete(VoiceInput.Unavailable)
                 }
                 try {
                     engine.startListening(recognitionIntent())
                     val input = withTimeoutOrNull(window.timeoutMs) { outcome.await() }
-                    if (!routeReady(deviceId)) VoiceInput.Unavailable
-                    else input ?: if (ready && !heardSpeech) VoiceInput.Silence else VoiceInput.Unavailable
+                    when {
+                        !routeReady(mic) -> VoiceInput.Unavailable
+                        input != null -> input
+                        silenceReported && !heardSpeech -> VoiceInput.Silence
+                        ready -> VoiceInput.Timeout
+                        else -> VoiceInput.Unavailable
+                    }
                 } finally {
                     watch.cancel()
                 }
             } finally {
-                buttons.endWindow()
+                buttons?.endWindow()
                 outcome.cancel()
                 onAmplitude(null)
                 try {
@@ -212,16 +243,23 @@ internal class SpeechRecognitionManager @Inject constructor(
         }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun routeReady(deviceId: Int): Boolean =
-        !audio.isMicrophoneMute && isHeadsetConnected(deviceId) && audio.communicationDevice?.id == deviceId
+    private fun routeReady(mic: ReplyMic): Boolean =
+        audio.mode == AudioManager.MODE_IN_COMMUNICATION && isMicAvailable(mic) &&
+            audio.communicationDevice?.id == mic.id
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun AudioDeviceInfo.isHeadset(): Boolean =
         type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || type == AudioDeviceInfo.TYPE_BLE_HEADSET
 
+    private fun AudioDeviceInfo.isPhoneOutput(): Boolean =
+        type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER || type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+
     companion object {
         fun hasPermissions(context: Context): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+        @RequiresApi(Build.VERSION_CODES.S)
+        private fun hasBluetoothPermission(context: Context): Boolean =
             ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
 
         private fun recognitionIntent() = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
