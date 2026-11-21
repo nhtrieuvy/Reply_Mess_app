@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Process
 import android.service.notification.StatusBarNotification
 import androidx.annotation.MainThread
+import com.drivevoice.app.data.model.MessageItem
 import com.drivevoice.app.data.model.ReplyTarget
 import com.drivevoice.app.domain.queue.MessageQueueManager
 import javax.inject.Inject
@@ -26,6 +27,7 @@ internal class NotificationInbox @Inject constructor() {
     private var snapshotReader: (() -> Array<StatusBarNotification>)? = null
     private var queue: MessageQueueManager? = null
     private var repliesEnabled = false
+    private var accepts: (MessageItem) -> Boolean = { true }
 
     @MainThread
     fun bind(reader: () -> Array<StatusBarNotification>) {
@@ -39,7 +41,11 @@ internal class NotificationInbox @Inject constructor() {
     }
 
     @MainThread
-    fun start(newQueue: MessageQueueManager, enableReplies: Boolean = false): Boolean {
+    fun start(
+        newQueue: MessageQueueManager,
+        enableReplies: Boolean = false,
+        filter: (MessageItem) -> Boolean = { true },
+    ): Boolean {
         val reader = snapshotReader ?: return false
         val active = try {
             reader()
@@ -53,6 +59,7 @@ internal class NotificationInbox @Inject constructor() {
         }
         queue = newQueue
         repliesEnabled = enableReplies
+        accepts = filter
         return true
     }
 
@@ -72,8 +79,11 @@ internal class NotificationInbox @Inject constructor() {
             }
         }
         remember(notification.key, snapshot, previous)
-        val reply = if (repliesEnabled) updateReply(notification, snapshot) else null
-        incoming.forEach {
+        val accepted = incoming.filter { accepts(it.item) }
+        val reply = if (repliesEnabled && (accepted.isNotEmpty() || notification.key in replies)) {
+            updateReply(notification, snapshot)
+        } else null
+        accepted.forEach {
             val target = reply?.target?.takeIf { _ -> it.item.sender.conversation == reply.conversation }
             destination.enqueue(it.item.copy(reply = target))
         }
@@ -92,6 +102,7 @@ internal class NotificationInbox @Inject constructor() {
         snapshots.clear()
         replies.clear()
         repliesEnabled = false
+        accepts = { true }
     }
 
     @MainThread
@@ -111,8 +122,9 @@ internal class NotificationInbox @Inject constructor() {
         return try {
             val post = snapshotReader?.invoke()?.firstOrNull { it.key == target.notificationKey } ?: return null
             val snapshot = parse(post) ?: return null
-            if (snapshot.replyLabel != target.label ||
-                snapshot.newest?.item?.sender?.conversation != saved.conversation
+            val newest = snapshot.newest?.item ?: return null
+            if (snapshot.replyLabel != target.label || !accepts(newest) ||
+                newest.sender.conversation != saved.conversation
             ) return null
             val endpoint = InlineReply.find(post.notification, post.packageName, post.user) ?: return null
             val locked = endpoint.requiresUnlock && context.getSystemService(KeyguardManager::class.java).isDeviceLocked

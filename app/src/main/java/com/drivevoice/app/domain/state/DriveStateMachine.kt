@@ -7,7 +7,7 @@ import java.util.Locale
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-internal enum class DriveState { IDLE, SPEAKING_MSG, LISTENING_REPLY, CONFIRMING_REPLY, SENDING }
+internal enum class DriveState { IDLE, READY, SPEAKING_MSG, LISTENING_REPLY, CONFIRMING_REPLY, SENDING }
 internal enum class SpeechResult { DONE, FOCUS_UNAVAILABLE, OFFLINE_VOICE_UNAVAILABLE, FAILED }
 internal enum class ReplyWindow(val timeoutMs: Long) { DICTATION(6_000), CONFIRMATION(4_000) }
 internal enum class DriveResult {
