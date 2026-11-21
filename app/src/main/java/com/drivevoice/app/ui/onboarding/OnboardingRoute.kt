@@ -22,11 +22,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.drivevoice.app.R
+import com.drivevoice.app.service.DriveForegroundService
 
 @Composable
 internal fun OnboardingRoute(activity: ComponentActivity, viewModel: OnboardingViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listenerConnected by viewModel.listenerConnected.collectAsStateWithLifecycle()
+    val readingStatus by DriveForegroundService.readingStatus.collectAsStateWithLifecycle()
     var blockedSteps by rememberSaveable { mutableIntStateOf(0) }
     var settingsUnavailable by rememberSaveable { mutableStateOf(false) }
 
@@ -60,6 +62,11 @@ internal fun OnboardingRoute(activity: ComponentActivity, viewModel: OnboardingV
     OnboardingScreen(
         state = state,
         listenerConnected = listenerConnected,
+        readingStatus = readingStatus,
+        onReadingToggle = {
+            if (readingStatus.active) DriveForegroundService.stop(activity)
+            else DriveForegroundService.start(activity)
+        },
         actionLabel = { step ->
             if (permissionToRequest(step) == null) R.string.open_settings else R.string.grant_permission
         },

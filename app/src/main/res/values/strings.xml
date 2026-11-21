@@ -6,6 +6,23 @@
     <string name="setup_incomplete">CHƯA ĐỦ QUYỀN</string>
     <string name="setup_complete">ĐÃ CẤP ĐỦ QUYỀN</string>
 
+    <string name="reading_title">Đọc tin nhắn</string>
+    <string name="reading_description">Đọc tin mới từ Zalo, Messenger và Telegram qua đầu ra âm thanh hiện tại.</string>
+    <string name="reading_start">Bắt đầu đọc tin nhắn</string>
+    <string name="reading_stop">Dừng đọc</string>
+    <string name="reading_idle">Đang tắt</string>
+    <string name="reading_starting">Đang chuẩn bị giọng tiếng Việt</string>
+    <string name="reading_waiting">Đang chờ tin nhắn mới</string>
+    <string name="reading_speaking">Đang đọc tin nhắn</string>
+    <string name="reading_focus_unavailable">Âm thanh đang được ứng dụng khác sử dụng</string>
+    <string name="reading_playback_error">Không phát được tin nhắn vừa nhận</string>
+    <string name="reading_not_connected">Chưa kết nối được dịch vụ đọc thông báo</string>
+    <string name="reading_no_offline_voice">Chưa có giọng tiếng Việt ngoại tuyến. Hãy tải dữ liệu giọng nói trong cài đặt chuyển văn bản thành giọng nói rồi thử lại.</string>
+    <string name="reading_failed">Không khởi động được phiên đọc</string>
+    <string name="reading_channel">Đọc tin nhắn</string>
+    <string name="reading_notification">Phiên đọc tin nhắn đang bật</string>
+    <string name="reading_announcement">Tin nhắn từ %1$s trên %2$s: %3$s</string>
+
     <string name="access_title">Quyền truy cập thông báo</string>
     <string name="access_description">Android cấp cho DriveVoice quyền xem thông báo đến. DriveVoice dùng nội dung tin nhắn để đọc trên thiết bị và xử lý trong bộ nhớ tạm.</string>
     <string name="access_instructions">Trong Cài đặt, chọn DriveVoice rồi bật Cho phép truy cập thông báo.</string>
