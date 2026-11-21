@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DriveVoice</string>
+    <string name="setup_title">Thiết lập quyền</string>
+    <string name="setup_intro">Cấp quyền khi bạn đã dừng xe.</string>
+    <string name="setup_incomplete">CHƯA ĐỦ QUYỀN</string>
+    <string name="setup_complete">ĐÃ CẤP ĐỦ QUYỀN</string>
+
+    <string name="access_title">Quyền truy cập thông báo</string>
+    <string name="access_description">Android cấp cho DriveVoice quyền xem thông báo đến. DriveVoice dùng nội dung tin nhắn để đọc trên thiết bị và xử lý trong bộ nhớ tạm.</string>
+    <string name="access_instructions">Trong Cài đặt, chọn DriveVoice rồi bật Cho phép truy cập thông báo.</string>
+    <string name="access_connected">Dịch vụ đã kết nối</string>
+    <string name="access_waiting">Đã cấp quyền · Đang chờ Android kết nối</string>
+
+    <string name="microphone_title">Micrô</string>
+    <string name="microphone_description">Dùng micrô để nhận câu trả lời và lệnh xác nhận bằng giọng nói.</string>
+
+    <string name="bluetooth_title">Tai nghe Bluetooth</string>
+    <string name="bluetooth_description">Cho phép DriveVoice nhận biết tai nghe đã ghép nối.</string>
+    <string name="bluetooth_unavailable">Thiết bị này không hỗ trợ Bluetooth.</string>
+
+    <string name="status_notifications_title">Thông báo trạng thái</string>
+    <string name="status_notifications_description">Tùy chọn · Hiện thông báo khi chế độ lái xe hoạt động.</string>
+
+    <string name="battery_title">Tối ưu hóa pin</string>
+    <string name="battery_description">Tùy chọn · Nếu điện thoại thường dừng ứng dụng chạy nền, chọn DriveVoice trong Cài đặt pin rồi cho phép chạy nền.</string>
+    <string name="battery_exempt">Đã miễn tối ưu hóa</string>
+    <string name="battery_optimized">Đang tối ưu hóa</string>
+
+    <string name="granted">Đã cấp</string>
+    <string name="needed">Chưa cấp</string>
+    <string name="unavailable">Không khả dụng</string>
+    <string name="not_required">Không cần cấp trên phiên bản Android này</string>
+    <string name="grant_permission">Cấp quyền</string>
+    <string name="open_settings">Mở cài đặt</string>
+    <string name="settings_unavailable">Điện thoại không mở được trang cài đặt này.</string>
+    <string name="close">Đóng</string>
+</resources>
