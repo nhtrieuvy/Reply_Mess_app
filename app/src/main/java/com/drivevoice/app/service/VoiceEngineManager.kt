@@ -1,20 +1,23 @@
 package com.drivevoice.app.service
 
 import android.content.Context
-import android.media.AudioAttributes
+import android.media.AudioFormat
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
+import com.drivevoice.app.data.bluetooth.messageAudioAttributes
 import com.drivevoice.app.domain.state.SpeechResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.sqrt
 
 /** A single owner calls initialize, speak and close on the main dispatcher. */
 internal class VoiceEngineManager @Inject constructor(
@@ -22,10 +25,7 @@ internal class VoiceEngineManager @Inject constructor(
 ) {
     private val audio = context.getSystemService(AudioManager::class.java)
     private val handler = Handler(Looper.getMainLooper())
-    private val attributes = AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
-        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-        .build()
+    private val attributes = messageAudioAttributes
     private var tts: TextToSpeech? = null
 
     suspend fun initialize(): Boolean {
@@ -42,7 +42,7 @@ internal class VoiceEngineManager @Inject constructor(
             engine.setAudioAttributes(attributes) == TextToSpeech.SUCCESS
     }
 
-    suspend fun speak(text: String, onSpeaking: () -> Unit = {}): SpeechResult {
+    suspend fun speak(text: String, onAmplitude: (Float) -> Unit = {}): SpeechResult {
         val engine = tts ?: return SpeechResult.OFFLINE_VOICE_UNAVAILABLE
         if (engine.voice?.isInstalledVietnamese() != true) return SpeechResult.OFFLINE_VOICE_UNAVAILABLE
 
@@ -59,13 +59,35 @@ internal class VoiceEngineManager @Inject constructor(
             return SpeechResult.FOCUS_UNAVAILABLE
         }
 
+        val envelope = SpeechEnvelope()
+        val meter = object : Runnable {
+            var startedAt = 0L
+            override fun run() {
+                if (result.isCompleted) return
+                onAmplitude(envelope.at(SystemClock.uptimeMillis() - startedAt))
+                handler.postDelayed(this, 33)
+            }
+        }
         var completed = false
         try {
             engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String) {
                     if (utteranceId == id) handler.post {
-                        if (!result.isCompleted) onSpeaking()
+                        if (!result.isCompleted) {
+                            meter.startedAt = SystemClock.uptimeMillis()
+                            meter.run()
+                        }
                     }
+                }
+
+                override fun onBeginSynthesis(utteranceId: String, sampleRateInHz: Int, audioFormat: Int, channelCount: Int) {
+                    if (utteranceId == id && audioFormat == AudioFormat.ENCODING_PCM_16BIT) {
+                        envelope.configure(sampleRateInHz, channelCount)
+                    }
+                }
+
+                override fun onAudioAvailable(utteranceId: String, audio: ByteArray) {
+                    if (utteranceId == id && !result.isCompleted) envelope.append(audio)
                 }
 
                 override fun onDone(utteranceId: String) {
@@ -99,6 +121,8 @@ internal class VoiceEngineManager @Inject constructor(
             return outcome
         } finally {
             result.cancel()
+            handler.removeCallbacks(meter)
+            onAmplitude(0f)
             try {
                 engine.setOnUtteranceProgressListener(null)
                 if (!completed) engine.stop()
@@ -123,6 +147,44 @@ internal class VoiceEngineManager @Inject constructor(
         const val INIT_TIMEOUT_MS = 8_000L
         const val UTTERANCE_TIMEOUT_MS = 75_000L
     }
+}
+
+/** Retains amplitude frames only. Engines can synthesize PCM well ahead of playback. */
+private class SpeechEnvelope {
+    private val levels = FloatArray(2_250)
+    private var frames = 0
+    private var frameSamples = 0
+    private var samples = 0
+    private var sum = 0L
+
+    @Synchronized
+    fun configure(sampleRate: Int, channels: Int) {
+        frameSamples = (sampleRate * channels / 30).coerceAtLeast(1)
+    }
+
+    @Synchronized
+    fun append(audio: ByteArray) {
+        if (frameSamples == 0) return
+        for (index in 1 until audio.size step 2) {
+            if (frames == levels.size) return
+            val sample = audio[index].toInt()
+            sum += sample * sample
+            samples++
+            if (samples == frameSamples) {
+                levels[frames++] = level()
+                samples = 0
+                sum = 0
+            }
+        }
+    }
+
+    @Synchronized
+    fun at(elapsedMs: Long): Float {
+        val index = (elapsedMs * 30 / 1_000).toInt()
+        return if (index < frames) levels[index] else level()
+    }
+
+    private fun level(): Float = if (samples == 0) 0f else (sqrt(sum.toFloat() / samples) / 48f).coerceIn(0f, 1f)
 }
 
 private fun Voice.isInstalledVietnamese(): Boolean =

@@ -68,10 +68,16 @@ internal class SpeechRecognitionManager @Inject constructor(
 
     data class Capture(val input: VoiceInput, val headsetId: Int? = null)
 
-    suspend fun listen(window: ReplyWindow, buttons: MediaButtonHandler, headsetId: Int?): Capture {
+    suspend fun listen(
+        window: ReplyWindow,
+        buttons: MediaButtonHandler,
+        headsetId: Int?,
+        preferredAddress: String?,
+        onAmplitude: (Float?) -> Unit,
+    ): Capture {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !isAvailable()) return Capture(VoiceInput.Unavailable)
         return try {
-            capture(window, buttons, headsetId)
+            capture(window, buttons, headsetId, preferredAddress, onAmplitude)
         } catch (_: SecurityException) {
             Capture(VoiceInput.Unavailable)
         } catch (_: IllegalStateException) {
@@ -82,8 +88,16 @@ internal class SpeechRecognitionManager @Inject constructor(
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private suspend fun capture(window: ReplyWindow, buttons: MediaButtonHandler, headsetId: Int?): Capture {
-        val available = audio.availableCommunicationDevices.filter { it.isHeadset() }
+    private suspend fun capture(
+        window: ReplyWindow,
+        buttons: MediaButtonHandler,
+        headsetId: Int?,
+        preferredAddress: String?,
+        onAmplitude: (Float?) -> Unit,
+    ): Capture {
+        val available = audio.availableCommunicationDevices.filter {
+            it.isHeadset() && (preferredAddress == null || it.address == preferredAddress)
+        }
         val selected = if (headsetId == null) {
             available.firstOrNull { it.id == audio.communicationDevice?.id } ?: available.singleOrNull()
         } else available.firstOrNull { it.id == headsetId }
@@ -99,7 +113,7 @@ internal class SpeechRecognitionManager @Inject constructor(
                 true
             }
             if (connected != true || !routeReady(selected.id)) return Capture(VoiceInput.Unavailable)
-            return Capture(recognize(window, buttons, selected.id), selected.id)
+            return Capture(recognize(window, buttons, selected.id, onAmplitude), selected.id)
         } finally {
             try {
                 if (acquiredRoute) audio.clearCommunicationDevice()
@@ -110,7 +124,12 @@ internal class SpeechRecognitionManager @Inject constructor(
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private suspend fun recognize(window: ReplyWindow, buttons: MediaButtonHandler, deviceId: Int): VoiceInput =
+    private suspend fun recognize(
+        window: ReplyWindow,
+        buttons: MediaButtonHandler,
+        deviceId: Int,
+        onAmplitude: (Float?) -> Unit,
+    ): VoiceInput =
         coroutineScope {
             val outcome = CompletableDeferred<VoiceInput>()
             val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
@@ -137,10 +156,15 @@ internal class SpeechRecognitionManager @Inject constructor(
                     override fun onReadyForSpeech(params: Bundle?) {
                         if (ready || outcome.isCompleted) return
                         ready = true
+                        onAmplitude(0f)
                         buttons.open { outcome.complete(VoiceInput.Button) }
                     }
                     override fun onBeginningOfSpeech() { heardSpeech = true }
-                    override fun onRmsChanged(rmsdB: Float) = Unit
+                    override fun onRmsChanged(rmsdB: Float) {
+                        if (ready && !outcome.isCompleted && rmsdB.isFinite()) {
+                            onAmplitude(((rmsdB + 2f) / 14f).coerceIn(0f, 1f))
+                        }
+                    }
                     override fun onBufferReceived(buffer: ByteArray?) = Unit
                     override fun onEndOfSpeech() = Unit
                     override fun onEvent(eventType: Int, params: Bundle?) = Unit
@@ -174,6 +198,7 @@ internal class SpeechRecognitionManager @Inject constructor(
             } finally {
                 buttons.endWindow()
                 outcome.cancel()
+                onAmplitude(null)
                 try {
                     try {
                         recognizer?.cancel()

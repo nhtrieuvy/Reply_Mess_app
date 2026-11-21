@@ -3,7 +3,6 @@ package com.drivevoice.app.ui.onboarding
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -23,19 +22,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.drivevoice.app.R
-import com.drivevoice.app.service.DriveForegroundService
 
 @Composable
-internal fun OnboardingRoute(activity: ComponentActivity, viewModel: OnboardingViewModel) {
+internal fun OnboardingRoute(activity: ComponentActivity, viewModel: OnboardingViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listenerConnected by viewModel.listenerConnected.collectAsStateWithLifecycle()
-    val readingStatus by DriveForegroundService.readingStatus.collectAsStateWithLifecycle()
     var blockedSteps by rememberSaveable { mutableIntStateOf(0) }
     var settingsUnavailable by rememberSaveable { mutableStateOf(false) }
-    var handsFree by rememberSaveable { mutableStateOf(false) }
-    var autoSend by rememberSaveable { mutableStateOf(false) }
-    val canEnableReplies = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-        state.microphone == StepStatus.GRANTED && state.bluetooth == StepStatus.GRANTED
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -67,19 +60,7 @@ internal fun OnboardingRoute(activity: ComponentActivity, viewModel: OnboardingV
     OnboardingScreen(
         state = state,
         listenerConnected = listenerConnected,
-        readingStatus = readingStatus,
-        canEnableReplies = canEnableReplies,
-        handsFree = handsFree && canEnableReplies,
-        autoSend = autoSend,
-        onHandsFreeChange = {
-            handsFree = it
-            if (!it) autoSend = false
-        },
-        onAutoSendChange = { autoSend = it },
-        onReadingToggle = {
-            if (readingStatus.active) DriveForegroundService.stop(activity)
-            else DriveForegroundService.start(activity, handsFree && canEnableReplies, autoSend)
-        },
+        onBack = onBack,
         actionLabel = { step ->
             if (permissionToRequest(step) == null) R.string.open_settings else R.string.grant_permission
         },

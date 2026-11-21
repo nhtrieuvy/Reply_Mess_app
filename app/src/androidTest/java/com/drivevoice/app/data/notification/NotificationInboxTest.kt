@@ -84,6 +84,24 @@ class NotificationInboxTest {
         assertEquals("Hẹn gặp ở nhà", message?.text)
     }
 
+    @Test
+    fun enablingFilterDoesNotReplayPreviouslyExcludedMessages() = runTest {
+        val queue = MessageQueueManager(backgroundScope)
+        val output = mutableListOf<String>()
+        backgroundScope.launch { queue.batches.collect { output += it.text } }
+        val inbox = NotificationInbox()
+        var accept = false
+        inbox.bind { emptyArray() }
+        assertTrue(inbox.start(queue, filter = { accept }))
+
+        inbox.posted(styled(message("Tin bị lọc", 10)))
+        accept = true
+        inbox.posted(styled(message("Tin bị lọc", 10), message("Tin được đọc", 20)))
+        advanceTimeBy(4_000)
+        runCurrent()
+        assertEquals(listOf("Tin được đọc"), output)
+    }
+
     private fun builder() = NotificationCompat.Builder(context, "test").setSmallIcon(android.R.drawable.ic_dialog_info)
 
     private fun message(text: String, time: Long, person: Person? = sender) =
