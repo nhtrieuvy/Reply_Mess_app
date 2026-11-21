@@ -20,6 +20,7 @@ internal data class NotificationSnapshot(
     val newest: NotificationMessage?,
     val usesMessagingStyle: Boolean,
     val latestTimestamp: Long = 0L,
+    val replyLabel: String? = null,
 )
 
 internal object NotificationMessageParser {
@@ -50,6 +51,8 @@ internal object NotificationMessageParser {
             return NotificationSnapshot(
                 messages.filterNotNull(), messages.lastOrNull(), usesMessagingStyle = true,
                 latestTimestamp = live.maxOfOrNull { it.timestamp } ?: 0L,
+                replyLabel = clean(style.conversationTitle, NAME_LIMIT)
+                    ?: messages.lastOrNull()?.item?.displayName?.takeUnless { style.isGroupConversation },
             )
         }
 
@@ -63,7 +66,10 @@ internal object NotificationMessageParser {
             ?: clean(extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE), NAME_LIMIT)
             ?: name
         val message = makeMessage(digest, post, app, conversation, name, name, text, timestamp = 0L)
-        return NotificationSnapshot(listOf(message), message, usesMessagingStyle = false)
+        return NotificationSnapshot(
+            listOf(message), message, usesMessagingStyle = false,
+            replyLabel = clean(extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE), NAME_LIMIT) ?: name,
+        )
     }
 
     private fun makeMessage(
