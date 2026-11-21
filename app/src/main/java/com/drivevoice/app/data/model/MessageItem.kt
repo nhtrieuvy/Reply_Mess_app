@@ -17,10 +17,14 @@ internal data class MessageItem(
     val sender: MessageSender,
     val displayName: String,
     val text: String,
+    val reply: ReplyTarget? = null,
 )
+
+internal data class ReplyTarget(val notificationKey: String, val version: Long, val label: String)
 
 internal data class MessageBatch(val messages: List<MessageItem>) {
     val sender: MessageSender get() = messages.first().sender
     val displayName: String get() = messages.first().displayName
     val text: String get() = messages.joinToString(". ") { it.text }
+    val reply: ReplyTarget? get() = messages.last().reply
 }

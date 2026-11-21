@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,8 +23,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -33,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -47,6 +51,11 @@ internal fun OnboardingScreen(
     state: SetupState,
     listenerConnected: Boolean,
     readingStatus: ReadingStatus,
+    canEnableReplies: Boolean,
+    handsFree: Boolean,
+    autoSend: Boolean,
+    onHandsFreeChange: (Boolean) -> Unit,
+    onAutoSendChange: (Boolean) -> Unit,
     onReadingToggle: () -> Unit,
     actionLabel: (SetupStep) -> Int,
     onStepClick: (SetupStep) -> Unit,
@@ -88,7 +97,10 @@ internal fun OnboardingScreen(
 
             if (state.notificationAccess == StepStatus.GRANTED || readingStatus != ReadingStatus.IDLE) {
                 HorizontalDivider(thickness = 1.dp, color = Color.White.copy(alpha = 0.12f))
-                ReadingControls(readingStatus, listenerConnected, onReadingToggle)
+                ReadingControls(
+                    readingStatus, listenerConnected, canEnableReplies, handsFree, autoSend,
+                    onHandsFreeChange, onAutoSendChange, onReadingToggle,
+                )
             }
 
             for (step in SetupStep.entries) {
@@ -113,7 +125,16 @@ internal fun OnboardingScreen(
 }
 
 @Composable
-private fun ReadingControls(status: ReadingStatus, listenerConnected: Boolean, onToggle: () -> Unit) {
+private fun ReadingControls(
+    status: ReadingStatus,
+    listenerConnected: Boolean,
+    canEnableReplies: Boolean,
+    handsFree: Boolean,
+    autoSend: Boolean,
+    onHandsFreeChange: (Boolean) -> Unit,
+    onAutoSendChange: (Boolean) -> Unit,
+    onToggle: () -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.reading_title),
@@ -133,6 +154,12 @@ private fun ReadingControls(status: ReadingStatus, listenerConnected: Boolean, o
                 ReadingStatus.STARTING -> R.string.reading_starting
                 ReadingStatus.WAITING -> R.string.reading_waiting
                 ReadingStatus.SPEAKING -> R.string.reading_speaking
+                ReadingStatus.LISTENING -> R.string.reply_listening
+                ReadingStatus.CONFIRMING -> R.string.reply_confirming
+                ReadingStatus.SENDING -> R.string.reply_sending
+                ReadingStatus.HANDED_OFF -> R.string.reply_handed_off
+                ReadingStatus.REPLY_UNAVAILABLE -> R.string.reply_unavailable
+                ReadingStatus.REPLY_FAILED -> R.string.reply_failed
                 ReadingStatus.FOCUS_UNAVAILABLE -> R.string.reading_focus_unavailable
                 ReadingStatus.PLAYBACK_ERROR -> R.string.reading_playback_error
                 ReadingStatus.NOT_CONNECTED -> R.string.reading_not_connected
@@ -149,6 +176,27 @@ private fun ReadingControls(status: ReadingStatus, listenerConnected: Boolean, o
         ) {
             Text(stringResource(if (status.active) R.string.reading_stop else R.string.reading_start))
         }
+        ReadingOption(R.string.reply_enable, handsFree, canEnableReplies && !status.active, onHandsFreeChange)
+        if (!canEnableReplies) {
+            Text(
+                stringResource(R.string.reply_requirements),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        if (handsFree) ReadingOption(R.string.reply_auto_send, autoSend, !status.active, onAutoSendChange)
+    }
+}
+
+@Composable
+private fun ReadingOption(@StringRes label: Int, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .toggleable(checked, enabled = enabled, role = Role.Checkbox, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
+        Text(stringResource(label), modifier = Modifier.padding(start = 12.dp))
     }
 }
 

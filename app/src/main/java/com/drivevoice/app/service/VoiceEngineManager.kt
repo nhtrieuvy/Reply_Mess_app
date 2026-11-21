@@ -9,13 +9,12 @@ import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
+import com.drivevoice.app.domain.state.SpeechResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
-
-internal enum class SpeechResult { DONE, FOCUS_UNAVAILABLE, OFFLINE_VOICE_UNAVAILABLE, FAILED }
 
 /** A single owner calls initialize, speak and close on the main dispatcher. */
 internal class VoiceEngineManager @Inject constructor(

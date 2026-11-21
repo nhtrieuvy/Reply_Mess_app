@@ -52,6 +52,6 @@
         <service
             android:name=".service.DriveForegroundService"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="mediaPlayback|microphone" />
     </application>
 </manifest>

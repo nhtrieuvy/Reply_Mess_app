@@ -22,6 +22,18 @@
     <string name="reading_channel">Đọc tin nhắn</string>
     <string name="reading_notification">Phiên đọc tin nhắn đang bật</string>
     <string name="reading_announcement">Tin nhắn từ %1$s trên %2$s: %3$s</string>
+    <string name="reply_enable">Trả lời rảnh tay bằng tai nghe Bluetooth</string>
+    <string name="reply_auto_send">Tự gửi sau 4 giây im lặng ở bước xác nhận</string>
+    <string name="reply_requirements">Cần Android 12 trở lên, quyền Micrô và Thiết bị ở gần.</string>
+    <string name="reply_listening">Đang chờ câu trả lời</string>
+    <string name="reply_confirming">Đang xác nhận câu trả lời</string>
+    <string name="reply_sending">Đang chuyển câu trả lời</string>
+    <string name="reply_handed_off">Đã chuyển câu trả lời cho ứng dụng nhắn tin</string>
+    <string name="reply_unavailable">Chưa thể nhận giọng nói. Kiểm tra tai nghe Bluetooth và bộ nhận diện tiếng Việt ngoại tuyến.</string>
+    <string name="reply_failed">Không thể trả lời. Kiểm tra thông báo gốc và kết nối tai nghe.</string>
+    <string name="reply_failed_spoken">Không thể gửi câu trả lời.</string>
+    <string name="reply_confirm">Gửi cho %1$s: %2$s. Nói Gửi hoặc bấm nút tai nghe để gửi. Nói Hủy hoặc Đọc lại.</string>
+    <string name="reply_confirm_auto">Gửi cho %1$s: %2$s. Sẽ tự gửi sau bốn giây im lặng. Nói Hủy, Đọc lại hoặc Gửi. Bạn cũng có thể bấm nút tai nghe để gửi.</string>
 
     <string name="access_title">Quyền truy cập thông báo</string>
     <string name="access_description">Android cấp cho DriveVoice quyền xem thông báo đến. DriveVoice dùng nội dung tin nhắn để đọc trên thiết bị và xử lý trong bộ nhớ tạm.</string>
