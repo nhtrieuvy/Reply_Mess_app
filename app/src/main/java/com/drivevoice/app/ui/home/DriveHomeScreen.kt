@@ -102,6 +102,7 @@ internal fun DriveHomeScreen(
     val action = when {
         !listenerConnected && !status.active -> R.string.drive_enable_access
         !hasSources && !status.active -> R.string.drive_choose_source
+        status == ReadingStatus.NO_OFFLINE_VOICE -> R.string.drive_voice_settings
         status.replayAllowed && sender != null -> R.string.drive_replay
         status.active -> R.string.drive_stop
         else -> R.string.drive_start
@@ -110,15 +111,25 @@ internal fun DriveHomeScreen(
         meter.listening && status == ReadingStatus.CONFIRMING -> R.string.drive_confirm
         meter.listening -> R.string.drive_listen
         status == ReadingStatus.SPEAKING -> R.string.drive_speak
-        status == ReadingStatus.CONFIRMING -> R.string.drive_confirm
+        status == ReadingStatus.CONFIRMING -> R.string.drive_readback
         status == ReadingStatus.LISTENING || status == ReadingStatus.STARTING -> R.string.drive_preparing
         status == ReadingStatus.SENDING -> R.string.drive_sending
         status == ReadingStatus.HANDED_OFF -> R.string.drive_sent
+        status == ReadingStatus.REPLY_CANCELLED -> R.string.drive_reply_cancelled
+        status == ReadingStatus.DICTATION_UNCLEAR -> R.string.drive_dictation_unclear
+        status == ReadingStatus.CONFIRMATION_UNCLEAR -> R.string.drive_confirmation_unclear
+        status == ReadingStatus.TARGET_EXPIRED -> R.string.drive_target_expired
+        status == ReadingStatus.AUDIO_UNSUPPORTED -> R.string.drive_audio_unsupported
+        status == ReadingStatus.SILENCE_UNCONFIRMED -> R.string.drive_silence_unconfirmed
         status == ReadingStatus.NO_OFFLINE_VOICE -> R.string.drive_no_voice
+        status == ReadingStatus.CHOOSE_REPLY_HEADSET -> R.string.drive_choose_reply_headset
+        status == ReadingStatus.REPLY_MODEL_REQUIRED -> R.string.drive_reply_model_required
+        status == ReadingStatus.REPLY_MODEL_UNSUPPORTED -> R.string.drive_reply_model_unsupported
         status == ReadingStatus.REPLY_UNAVAILABLE -> R.string.drive_reply_unavailable
         status == ReadingStatus.FOCUS_UNAVAILABLE || status == ReadingStatus.PLAYBACK_ERROR -> R.string.drive_audio_unavailable
         status == ReadingStatus.REPLY_FAILED -> R.string.drive_reply_failed
         status == ReadingStatus.HEADSET_DISCONNECTED -> R.string.drive_disconnected
+        status == ReadingStatus.IDLE_TIMEOUT -> R.string.drive_timeout
         status == ReadingStatus.FAILED -> R.string.drive_start_failed
         status.active || deviceName != null -> R.string.drive_ready
         else -> R.string.drive_idle
@@ -146,7 +157,12 @@ internal fun DriveHomeScreen(
                         drawCircle(accent, radius = 3.dp.toPx())
                     }
                     Text(
-                        deviceName ?: stringResource(R.string.drive_no_headset),
+                        when {
+                            meter.listening -> stringResource(
+                                if (meter.bluetoothMic) R.string.drive_mic_bluetooth else R.string.drive_mic_phone,
+                            )
+                            else -> deviceName ?: stringResource(R.string.drive_no_headset)
+                        },
                         Modifier.padding(start = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )

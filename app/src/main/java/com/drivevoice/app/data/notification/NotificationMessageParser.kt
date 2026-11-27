@@ -68,7 +68,8 @@ internal object NotificationMessageParser {
         val message = makeMessage(digest, post, app, conversation, name, name, text, timestamp = 0L)
         return NotificationSnapshot(
             listOf(message), message, usesMessagingStyle = false,
-            replyLabel = clean(extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE), NAME_LIMIT) ?: name,
+            replyLabel = clean(extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE), NAME_LIMIT)
+                ?: name.takeIf { !notification.shortcutId.isNullOrBlank() },
         )
     }
 

@@ -7,6 +7,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.drivevoice.app.data.model.NotificationLifetime
 import com.drivevoice.app.domain.queue.MessageQueueManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -38,11 +39,33 @@ class NotificationInboxTest {
         val update = styled(message("Tin mới", 20), message("Tin lịch sử vừa được mở rộng", 5))
         inbox.posted(update)
         inbox.posted(update)
+        advanceTimeBy(4_000)
+        runCurrent()
         inbox.removed(update.key)
         inbox.posted(update)
         advanceTimeBy(4_000)
         runCurrent()
         assertEquals(listOf("Tin mới"), output)
+    }
+
+    @Test
+    fun aWithdrawnNotificationCannotBeReadWhenAndroidReusesItsKey() = runTest {
+        val queue = MessageQueueManager(backgroundScope)
+        val output = mutableListOf<String>()
+        val withdrawn = mutableListOf<NotificationLifetime>()
+        backgroundScope.launch { queue.batches.collect { output += it.text } }
+        val inbox = NotificationInbox()
+        inbox.bind { emptyArray() }
+        assertTrue(inbox.start(queue, onWithdrawn = { withdrawn += it }))
+
+        val first = styled(message("Tin đã thu hồi", 10))
+        inbox.posted(first)
+        inbox.removed(first.key)
+        inbox.posted(styled(message("Tin mới cùng khóa", 20)))
+        advanceTimeBy(4_000)
+        runCurrent()
+        assertEquals(listOf("Tin mới cùng khóa"), output)
+        assertTrue(withdrawn.single().withdrawn)
     }
 
     @Test
@@ -82,6 +105,7 @@ class NotificationInboxTest {
         val message = NotificationMessageParser.parse(post("com.zing.zalo", plain))?.newest?.item
         assertNotNull(message)
         assertEquals("Hẹn gặp ở nhà", message?.text)
+        assertNull(NotificationMessageParser.parse(post("com.zing.zalo", plain))?.replyLabel)
     }
 
     @Test

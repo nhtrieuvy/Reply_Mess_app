@@ -11,11 +11,14 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <queries>
+        <package android:name="com.zing.zalo" />
+        <package android:name="com.facebook.orca" />
+        <package android:name="org.telegram.messenger" />
+        <package android:name="org.telegram.messenger.web" />
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
@@ -53,6 +56,12 @@
             android:name=".service.DriveForegroundService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback|microphone" />
+
+        <provider
+            android:name=".data.notification.VoiceReplyProvider"
+            android:authorities="${applicationId}.voice-reply"
+            android:exported="false"
+            android:grantUriPermissions="true" />
 
         <receiver android:name=".service.BluetoothConnectionReceiver" android:exported="true">
             <intent-filter>

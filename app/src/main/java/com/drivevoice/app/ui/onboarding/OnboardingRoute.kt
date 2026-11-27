@@ -29,6 +29,7 @@ internal fun OnboardingRoute(activity: ComponentActivity, viewModel: OnboardingV
     val listenerConnected by viewModel.listenerConnected.collectAsStateWithLifecycle()
     var blockedSteps by rememberSaveable { mutableIntStateOf(0) }
     var settingsUnavailable by rememberSaveable { mutableStateOf(false) }
+    var disclosure by rememberSaveable { mutableStateOf<SetupStep?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -57,6 +58,12 @@ internal fun OnboardingRoute(activity: ComponentActivity, viewModel: OnboardingV
         return if (blocked) null else step.runtimePermission
     }
 
+    fun request(step: SetupStep) {
+        val permission = permissionToRequest(step)
+        if (permission != null) permissionLauncher.launch(arrayOf(permission))
+        else settingsUnavailable = !activity.openSetupSettings(step)
+    }
+
     OnboardingScreen(
         state = state,
         listenerConnected = listenerConnected,
@@ -65,14 +72,30 @@ internal fun OnboardingRoute(activity: ComponentActivity, viewModel: OnboardingV
             if (permissionToRequest(step) == null) R.string.open_settings else R.string.grant_permission
         },
         onStepClick = { step ->
-            val permission = permissionToRequest(step)
-            if (permission != null) {
-                permissionLauncher.launch(arrayOf(permission))
-            } else {
-                settingsUnavailable = !activity.openSetupSettings(step)
+            when (step) {
+                SetupStep.NOTIFICATION_ACCESS, SetupStep.MICROPHONE -> disclosure = step
+                else -> request(step)
             }
         },
     )
+
+    disclosure?.let { step ->
+        val notification = step == SetupStep.NOTIFICATION_ACCESS
+        AlertDialog(
+            onDismissRequest = { disclosure = null },
+            title = { Text(stringResource(if (notification) R.string.access_title else R.string.microphone_title)) },
+            text = { Text(stringResource(if (notification) R.string.access_disclosure else R.string.microphone_disclosure)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    disclosure = null
+                    request(step)
+                }) { Text(stringResource(R.string.disclosure_continue)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { disclosure = null }) { Text(stringResource(R.string.disclosure_decline)) }
+            },
+        )
+    }
 
     if (settingsUnavailable) {
         AlertDialog(

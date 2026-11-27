@@ -7,12 +7,17 @@ internal data class VipContact(val app: MessageApp, val name: String) {
     val normalizedName: String get() = normalizeSender(name)
 }
 
+internal enum class ReplyMode { TEXT, RECORDING }
+
 internal data class AppConfig(
     val sources: Set<MessageApp> = MessageApp.entries.toSet(),
     val headsetAddress: String? = null,
     val autoStart: Boolean = false,
     val handsFree: Boolean = false,
+    val headsetOnlyReplies: Boolean = true,
     val autoSend: Boolean = false,
+    val replyMode: ReplyMode = ReplyMode.TEXT,
+    val filterReplies: Boolean = false,
     val vipOnly: Boolean = false,
     val vips: Set<VipContact> = emptySet(),
 ) {

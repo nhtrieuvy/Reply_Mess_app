@@ -13,7 +13,7 @@ import androidx.core.content.IntentCompat
 internal class MediaButtonHandler(context: Context) {
     private val session = MediaSessionCompat(context, "DriveVoice reply")
     private var accept: (() -> Unit)? = null
-    private var openedAt = 0L
+    private val press = ReplyMediaPress()
 
     init {
         session.setMediaButtonReceiver(null)
@@ -23,7 +23,7 @@ internal class MediaButtonHandler(context: Context) {
                 val event = IntentCompat.getParcelableExtra(mediaButtonEvent, Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
                     ?: return false
                 if (event.keyCode !in replyKeys) return false
-                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && event.downTime >= openedAt) {
+                if (press.handle(event.action, event.repeatCount, event.keyCode, event.downTime)) {
                     accept = null
                     action()
                 }
@@ -33,7 +33,7 @@ internal class MediaButtonHandler(context: Context) {
     }
 
     fun open(action: () -> Unit) {
-        openedAt = SystemClock.uptimeMillis()
+        press.open(SystemClock.uptimeMillis())
         accept = action
         session.setPlaybackState(
             PlaybackStateCompat.Builder()
@@ -56,5 +56,24 @@ internal class MediaButtonHandler(context: Context) {
 
     private companion object {
         val replyKeys = setOf(KeyEvent.KEYCODE_HEADSETHOOK, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+    }
+}
+
+internal class ReplyMediaPress {
+    private var openedAt = 0L
+    private var pressed: Pair<Int, Long>? = null
+
+    fun open(now: Long) {
+        openedAt = now
+        pressed = null
+    }
+
+    fun handle(action: Int, repeats: Int, key: Int, downTime: Long): Boolean {
+        if (downTime < openedAt) return false
+        val pressId = key to downTime
+        if (action == KeyEvent.ACTION_DOWN && repeats == 0) pressed = pressId
+        if (action != KeyEvent.ACTION_UP || pressed != pressId) return false
+        pressed = null
+        return true
     }
 }

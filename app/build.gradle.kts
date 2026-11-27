@@ -8,20 +8,55 @@ plugins {
     id("com.google.dagger.hilt.android")
 }
 
+val uploadSigning = listOf(
+    "DRIVEVOICE_UPLOAD_STORE",
+    "DRIVEVOICE_UPLOAD_STORE_PASSWORD",
+    "DRIVEVOICE_UPLOAD_ALIAS",
+    "DRIVEVOICE_UPLOAD_KEY_PASSWORD",
+).associateWith { providers.environmentVariable(it).orNull }
+
+require(uploadSigning.values.all { it == null } || uploadSigning.values.all { !it.isNullOrBlank() }) {
+    "Set all four DRIVEVOICE_UPLOAD_* environment variables together."
+}
+
 android {
     namespace = "com.drivevoice.app"
     compileSdk = 36
+    ndkVersion = "28.2.13676358"
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 
     defaultConfig {
         applicationId = "com.drivevoice.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 9
+        versionName = "1.0.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures { compose = true }
+
+    val upload = if (uploadSigning.values.all { !it.isNullOrBlank() }) {
+        signingConfigs.create("upload") {
+            storeFile = rootProject.file(checkNotNull(uploadSigning["DRIVEVOICE_UPLOAD_STORE"]))
+            storePassword = uploadSigning["DRIVEVOICE_UPLOAD_STORE_PASSWORD"]
+            keyAlias = uploadSigning["DRIVEVOICE_UPLOAD_ALIAS"]
+            keyPassword = uploadSigning["DRIVEVOICE_UPLOAD_KEY_PASSWORD"]
+        }
+    } else null
+
+    buildTypes.named("release") {
+        isMinifyEnabled = true
+        isShrinkResources = true
+        proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        signingConfig = upload
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
