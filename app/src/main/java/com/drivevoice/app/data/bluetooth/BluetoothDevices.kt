@@ -87,6 +87,15 @@ internal class BluetoothDevices @Inject constructor(@param:ApplicationContext pr
             it.isBluetoothMedia() && it.address == address
         }
 
+    fun hasAudioConnection(address: String): Boolean {
+        if (!hasPermission()) return false
+        return connected(address) || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            audio.availableCommunicationDevices.any {
+                it.address == address &&
+                    (it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || it.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
+            })
+    }
+
     @SuppressLint("MissingPermission")
     fun isPaired(device: BluetoothDevice): Boolean = hasPermission() && try {
         device.bondState == BluetoothDevice.BOND_BONDED
@@ -102,6 +111,13 @@ internal class BluetoothDevices @Inject constructor(@param:ApplicationContext pr
         } else {
             true
         }
+    }
+
+    suspend fun mediaHeadsetAddress(): String? = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !hasPermission()) return@withContext null
+        audio.getAudioDevicesForAttributes(messageAudioAttributes).singleOrNull()
+            ?.takeIf { it.isBluetoothMedia() && BluetoothAdapter.checkBluetoothAddress(it.address) }
+            ?.address
     }
 
     private fun AudioDeviceInfo.isBluetoothMedia(): Boolean =

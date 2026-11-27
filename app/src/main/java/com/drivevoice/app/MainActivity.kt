@@ -30,6 +30,8 @@ import com.drivevoice.app.ui.home.DriveViewModel
 import com.drivevoice.app.ui.onboarding.OnboardingRoute
 import com.drivevoice.app.ui.onboarding.OnboardingViewModel
 import com.drivevoice.app.ui.onboarding.StepStatus
+import com.drivevoice.app.ui.settings.AudioCheckScreen
+import com.drivevoice.app.ui.settings.AudioCheckViewModel
 import com.drivevoice.app.ui.settings.DriveSettingsScreen
 import com.drivevoice.app.ui.theme.DriveVoiceTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -38,6 +40,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val onboardingViewModel by viewModels<OnboardingViewModel>()
     private val driveViewModel by viewModels<DriveViewModel>()
+    private val audioCheckViewModel by viewModels<AudioCheckViewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,8 +80,12 @@ class MainActivity : ComponentActivity() {
                 driveViewModel.setVisible(false)
             }
         }
-        LaunchedEffect(visible, config, devices, listener) {
-            if (visible && listener && config != null) driveViewModel.tryAutomaticStart(preferences, devices)
+        val checkingAudio = screen == DriveScreen.AUDIO_CHECK ||
+            (screen == DriveScreen.PERMISSIONS && permissionsBack == DriveScreen.AUDIO_CHECK)
+        LaunchedEffect(visible, config, devices, listener, checkingAudio) {
+            if (visible && listener && config != null && !checkingAudio) {
+                driveViewModel.tryAutomaticStart(preferences, devices)
+            }
         }
 
         fun showPermissions() {
@@ -86,7 +93,11 @@ class MainActivity : ComponentActivity() {
             screen = DriveScreen.PERMISSIONS
         }
         fun back() {
-            screen = if (screen == DriveScreen.PERMISSIONS) permissionsBack else DriveScreen.HOME
+            screen = when (screen) {
+                DriveScreen.PERMISSIONS -> permissionsBack
+                DriveScreen.AUDIO_CHECK -> DriveScreen.SETTINGS
+                else -> DriveScreen.HOME
+            }
         }
         BackHandler(enabled = screen != DriveScreen.HOME) { back() }
         when (screen) {
@@ -124,6 +135,7 @@ class MainActivity : ComponentActivity() {
                 preferences, devices, status,
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && permissions.microphone == StepStatus.GRANTED,
                 issue, driveViewModel, ::back, ::showPermissions,
+                onAudioCheck = { screen = DriveScreen.AUDIO_CHECK },
                 onPair = {
                     try {
                         startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
@@ -132,9 +144,19 @@ class MainActivity : ComponentActivity() {
                     }
                 },
             )
+            DriveScreen.AUDIO_CHECK -> AudioCheckScreen(
+                viewModel = audioCheckViewModel,
+                driveActive = status.active,
+                micGranted = permissions.microphone == StepStatus.GRANTED,
+                bluetoothGranted = permissions.bluetooth == StepStatus.GRANTED,
+                bluetoothPermissionNeeded = permissions.bluetooth == StepStatus.NEEDED,
+                onBack = ::back,
+                onPermissions = ::showPermissions,
+                onStopDrive = { driveViewModel.stop(preferences) },
+            )
             DriveScreen.PERMISSIONS -> OnboardingRoute(this, onboardingViewModel, ::back)
         }
     }
 }
 
-private enum class DriveScreen { HOME, SETTINGS, PERMISSIONS }
+private enum class DriveScreen { HOME, SETTINGS, AUDIO_CHECK, PERMISSIONS }

@@ -1,6 +1,11 @@
 package com.drivevoice.app.service
 
-internal data class ReplyMic(val id: Int, val bluetooth: Boolean)
+internal data class ReplyMic(
+    val id: Int,
+    val bluetooth: Boolean,
+    val address: String? = null,
+    val type: Int? = null,
+)
 
 internal sealed interface ReplyMicSelection {
     data class Selected(val mic: ReplyMic) : ReplyMicSelection

@@ -1,4 +1,4 @@
-# DriveVoice 1.0.1
+# DriveVoice 1.0.7
 
 Ứng dụng Android Kotlin đọc tin nhắn mới bằng tiếng Việt từ Zalo, Messenger và Telegram. Tính năng trả lời rảnh tay ưu tiên micrô tai nghe Bluetooth và có thể dùng micrô điện thoại. Nhận diện tiếng Việt chạy trên thiết bị và phản hồi dùng thao tác trả lời của thông báo gốc. Chế độ đọc hỗ trợ Android 8 trở lên, chế độ trả lời yêu cầu Android 12 trở lên.
 
@@ -54,6 +54,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## Kiểm thử trả lời rảnh tay trên điện thoại
 
 1. Khi đã dừng xe, ghép nối một tai nghe có micrô Bluetooth SCO hoặc LE Audio và bật cả âm thanh phương tiện lẫn âm thanh cuộc gọi cho tai nghe. Cài dữ liệu **Tiếng Việt (Việt Nam)** cho cả bộ đọc TTS và bộ nhận diện giọng nói ngoại tuyến của thiết bị. Đây là hai gói dữ liệu riêng.
+
+   Trên máy ảo Android hoặc điện thoại chưa có mô hình nhận diện, dừng Drive Mode rồi vào **Cài đặt → Kiểm tra nhận diện tiếng Việt → Tải mô hình tiếng Việt** nếu Android báo có thể tải. Kiểm tra lại đến khi hiện **Đã cài nhận diện tiếng Việt ngoại tuyến**. Gói nhận diện dùng cho mic độc lập với gói giọng đọc TTS.
+
 2. Cấp quyền **Micrô**, **Thiết bị ở gần** và **Quyền truy cập thông báo**. Trong **Cài đặt**, bật **Trả lời rảnh tay** và **Chỉ trả lời khi kết nối tai nghe** và giữ tùy chọn tự gửi tắt. Quay về Home rồi chọn **BẮT ĐẦU**.
 3. Dùng tài khoản thử gửi một tin có hiện nút **Trả lời** trên thông báo của ứng dụng nguồn. Khi nghe tiếng bíp sau lượt đọc, nói một câu ngắn. DriveVoice chờ tối đa 6 giây để nhận bản nháp.
 4. Đợi DriveVoice đọc tên cuộc trò chuyện và toàn bộ bản nháp. Sau tiếng bíp tiếp theo, nói **Gửi** trong 4 giây. Kiểm tra ứng dụng nhắn tin gốc và thiết bị của người nhận để xác nhận đã gửi. Tiếng xác nhận và trạng thái DriveVoice báo rằng thao tác đã được chuyển cho ứng dụng nguồn.
@@ -63,8 +66,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | Nói **Đọc lại** hoặc bấm Play/Pause trong cửa sổ 6 giây | Đọc lại tin đến một lần rồi mở lại cửa sổ trả lời. |
 | Nói **Đọc lại** trong cửa sổ xác nhận | Đọc lại bản nháp một lần rồi xin xác nhận lại. |
 | Bấm Play/Pause hoặc nút nhận cuộc gọi tương ứng trong cửa sổ xác nhận | Xác nhận gửi nếu Android chuyển phím đến phiên media của DriveVoice. Khả năng nhận phím thay đổi theo tai nghe và trình phát đang hoạt động. |
-| Nói **Hủy**, nói một câu khác, hoặc im lặng khi tắt tự gửi | Kết thúc lượt trả lời và bỏ bản nháp. |
-| Bật rõ tùy chọn tự gửi trước khi bắt đầu phiên, đọc bản nháp rồi giữ im lặng trong bước xác nhận | Gửi sau 4 giây nếu bộ nhận diện báo im lặng, nguồn micrô đã chọn còn khả dụng và thao tác trả lời còn hiệu lực. Nếu hết hạn mà thiếu tín hiệu im lặng hoặc xảy ra lỗi, DriveVoice bỏ bản nháp. |
+| Nói **Hủy** | Bỏ bản nháp, hiện và đọc **Đã hủy trả lời**. |
+| Nói một câu khác hoặc im lặng khi tắt tự gửi | Kết thúc lượt trả lời và bỏ bản nháp. |
+| Chọn **Văn bản**, xác minh nguồn PCM rồi bật tự gửi trước khi bắt đầu phiên | Sau khi đọc bản nháp, DriveVoice tìm 4 giây liên tiếp không có giọng người trong tối đa 8 giây. Ứng dụng chỉ bàn giao văn bản nếu nguồn thu hợp lệ, bộ nhận diện kết thúc sạch sau khi nhận hết PCM và thao tác thông báo còn hiệu lực. |
 | Xóa thông báo gốc trên điện thoại khác đồng bộ cùng tài khoản hoặc nhờ người hỗ trợ xóa ngay trên máy thử trước khi xác nhận | Nếu Android đã thu hồi thông báo, DriveVoice báo không thể trả lời. |
 | Thử một thông báo thiếu ô trả lời, thiếu tên nhóm hoặc thiết bị thiếu mô hình nhận diện ngoại tuyến | Phiên vẫn có thể đọc tin. DriveVoice bỏ qua bước ghi bản nháp khi thông báo thiếu thao tác trả lời phù hợp. |
 | Ngắt tai nghe trong lúc ghi hoặc xác nhận | Hủy nhận diện hoặc từ chối gửi. |
@@ -108,3 +112,21 @@ Nếu Android hiển thị **Chế độ cài đặt bị hạn chế** cho bả
 - Tin nhắn, dấu vết chống đọc lặp và hàng đợi chỉ tồn tại trong RAM. Mỗi tin được giới hạn 350 ký tự, mỗi nhóm tối đa 6 tin và khoảng 700 ký tự nội dung. Khi hàng đợi đầy, nhóm cũ nhất đang chờ bị loại để giới hạn bộ nhớ. Thông báo của DriveVoice chỉ hiện trạng thái phiên đọc.
 - DriveVoice yêu cầu engine TTS của Google và chỉ gửi văn bản khi Android báo giọng tiếng Việt đã cài và hoạt động ngoại tuyến. Android quản lý đầu ra âm thanh. Manifest không yêu cầu quyền `INTERNET` hay quyền miễn tối ưu hóa pin trực tiếp. [API TextToSpeech](https://developer.android.com/reference/android/speech/tts/TextToSpeech)
 - Nhận diện dùng `createOnDeviceSpeechRecognizer` với `vi-VN`. DriveVoice yêu cầu tuyến âm thanh giao tiếp tương ứng với nguồn micrô và giải phóng tuyến sau mỗi cửa sổ. Bản nháp, khóa thông báo và quyền gửi tạm thời chỉ tồn tại trong RAM. [SpeechRecognizer](https://developer.android.com/reference/android/speech/SpeechRecognizer) · [AudioManager](https://developer.android.com/reference/android/media/AudioManager)
+
+## Kiểm tra mic và loa
+
+Mở **Cài đặt → Kiểm tra âm thanh** khi Drive Mode đã dừng. Chọn đầu vào và đầu ra hoặc giữ **Mặc định hệ thống**. Bấm **Thử loa** để nghe âm mẫu. Bấm **Kiểm tra mic**, nói thử và chờ phát lại sau tối đa 5 giây hoặc bấm **Nghe lại ngay**. So sánh tuyến thực tế hiển thị với thiết bị đã chọn. Các lựa chọn chỉ dùng cho bài thử.
+
+### So sánh lọc tiếng ồn
+
+Trong **Kiểm tra âm thanh**, bấm **Kiểm tra mic** để thu tối đa 5 giây. Sau khi phát lượt đầu, dùng **Bản gốc** và **Bản lọc** để nghe lại cùng đoạn trên cùng tuyến phát. Bản lọc dùng RNNoise 0.2 ngoại tuyến và giảm nhẹ phần ù trầm khi phát hiện gió. Android hoặc tai nghe có thể đã xử lý tín hiệu trước khi DriveVoice bắt đầu thu.
+
+Dùng **Thử nhận biết hết câu** để kiểm thử trong môi trường mô phỏng. Mic chờ tối đa 3 giây để bắt đầu nói. Sau khoảng 1,2 giây yên lặng có thể xác nhận, đoạn thử tự kết thúc, giữ phần âm đầu và đuôi. Tiếng nhiễu che lời không được tính là khoảng lặng. Nếu sau 10 giây chưa xác định được điểm kết thúc, lượt thử kết thúc với **Chưa nghe rõ**. Bấm **Nghe lại ngay** để chủ động chốt lượt đã có lời nói. Đoạn thử chỉ giữ trong RAM và được xóa khi dừng, thoát màn hình hoặc sau một phút chờ không sử dụng.
+
+Trong **Cài đặt → Trả lời rảnh tay**, chọn **Văn bản** hoặc **Bản ghi âm**. Tùy chọn **Lọc tiếng ồn khi trả lời** dùng bản lọc cho nhận diện và phát lại bản ghi. Kiểm tra im lặng để tự gửi văn bản luôn đánh giá tín hiệu đã lọc.
+
+Trên Android 13 trở lên, chạy **Kiểm tra lọc âm và tự gửi** khi Drive Mode đã dừng. DriveVoice đưa câu tiếng Việt tổng hợp thẳng vào bộ nhận diện ngoại tuyến bằng PCM. Khi chưa xác minh được, dùng lệnh **Gửi** để xác nhận văn bản. Đánh giá chất lượng thực tế với mic điện thoại và tai nghe trước khi dùng trong tiếng gió, động cơ hoặc còi.
+
+Bản ghi luôn được phát lại và cần xác nhận chủ động. DriveVoice kiểm tra cả MIME trên thông báo và phiên bản ứng dụng nhận. Danh sách cấu hình gửi bản ghi hiện chờ kiểm thử với thiết bị nhận cho Zalo, Messenger và Telegram.
+
+Hai bộ công cụ native dùng để đóng gói là **NDK 28.2.13676358** và **CMake 3.22.1**. CMake kiểm tra SHA-256 của gói RNNoise 0.2 đi kèm và sửa hai tham chiếu header/macro cũ trong thư mục build để biên dịch trên ARM. [Bản RNNoise 0.2](https://github.com/xiph/rnnoise/releases/tag/v0.2) · [Giấy phép kèm ứng dụng](app/src/main/assets/RNNoise-LICENSE.txt).

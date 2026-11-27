@@ -111,12 +111,20 @@ internal fun DriveHomeScreen(
         meter.listening && status == ReadingStatus.CONFIRMING -> R.string.drive_confirm
         meter.listening -> R.string.drive_listen
         status == ReadingStatus.SPEAKING -> R.string.drive_speak
-        status == ReadingStatus.CONFIRMING -> R.string.drive_confirm
+        status == ReadingStatus.CONFIRMING -> R.string.drive_readback
         status == ReadingStatus.LISTENING || status == ReadingStatus.STARTING -> R.string.drive_preparing
         status == ReadingStatus.SENDING -> R.string.drive_sending
         status == ReadingStatus.HANDED_OFF -> R.string.drive_sent
+        status == ReadingStatus.REPLY_CANCELLED -> R.string.drive_reply_cancelled
+        status == ReadingStatus.DICTATION_UNCLEAR -> R.string.drive_dictation_unclear
+        status == ReadingStatus.CONFIRMATION_UNCLEAR -> R.string.drive_confirmation_unclear
+        status == ReadingStatus.TARGET_EXPIRED -> R.string.drive_target_expired
+        status == ReadingStatus.AUDIO_UNSUPPORTED -> R.string.drive_audio_unsupported
+        status == ReadingStatus.SILENCE_UNCONFIRMED -> R.string.drive_silence_unconfirmed
         status == ReadingStatus.NO_OFFLINE_VOICE -> R.string.drive_no_voice
         status == ReadingStatus.CHOOSE_REPLY_HEADSET -> R.string.drive_choose_reply_headset
+        status == ReadingStatus.REPLY_MODEL_REQUIRED -> R.string.drive_reply_model_required
+        status == ReadingStatus.REPLY_MODEL_UNSUPPORTED -> R.string.drive_reply_model_unsupported
         status == ReadingStatus.REPLY_UNAVAILABLE -> R.string.drive_reply_unavailable
         status == ReadingStatus.FOCUS_UNAVAILABLE || status == ReadingStatus.PLAYBACK_ERROR -> R.string.drive_audio_unavailable
         status == ReadingStatus.REPLY_FAILED -> R.string.drive_reply_failed

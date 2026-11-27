@@ -9,11 +9,14 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Process
 import androidx.core.content.ContextCompat
+import com.drivevoice.app.data.model.ReplyMode
+import com.drivevoice.app.domain.state.ReplyRecording
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -65,6 +68,37 @@ class InlineReplyTest {
         } finally {
             mutable.cancel()
             immutable.cancel()
+        }
+    }
+
+    @Test
+    fun audioRemoteInputReceivesTheExactWaveThroughTheTemporaryUri() {
+        val received = ArrayBlockingQueue<ByteArray>(1)
+        val action = "$owner.TEST_AUDIO_REPLY"
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val uri = RemoteInput.getDataResultsFromIntent(intent, "audio")?.get("audio/wav") ?: return
+                context.contentResolver.openInputStream(uri)?.use { received.offer(it.readBytes()) }
+            }
+        }
+        ContextCompat.registerReceiver(context, receiver, IntentFilter(action), ContextCompat.RECEIVER_NOT_EXPORTED)
+        val token = token(action, PendingIntent.FLAG_MUTABLE)
+        try {
+            val audioAction = Notification.Action.Builder(null, "Voice reply", token)
+                .addRemoteInput(RemoteInput.Builder("audio").setAllowFreeFormInput(false)
+                    .setAllowDataType("audio/wav", true).build())
+                .setSemanticAction(Notification.Action.SEMANTIC_ACTION_REPLY)
+                .build()
+            assertNull(InlineReply.find(notification(audioAction), owner, user))
+            val endpoint = checkNotNull(InlineReply.find(notification(audioAction), owner, user, ReplyMode.RECORDING))
+            ReplyRecording(shortArrayOf(-123, 456, 789), 16_000).use { recording ->
+                assertTrue(endpoint.sendAudio(context, recording))
+                assertArrayEquals(recording.wave(), received.poll(5, TimeUnit.SECONDS))
+            }
+            assertNull(InlineReply.find(notification(replyAction(token)), owner, user, ReplyMode.RECORDING))
+        } finally {
+            token.cancel()
+            context.unregisterReceiver(receiver)
         }
     }
 

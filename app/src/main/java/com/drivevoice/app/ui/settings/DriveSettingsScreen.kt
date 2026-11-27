@@ -36,12 +36,16 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.text.HtmlCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.drivevoice.app.R
 import com.drivevoice.app.data.bluetooth.BluetoothSnapshot
 import com.drivevoice.app.data.model.AppConfig
+import com.drivevoice.app.data.model.ReplyMode
 import com.drivevoice.app.data.model.MessageApp
 import com.drivevoice.app.service.ReadingStatus
+import com.drivevoice.app.service.OfflineSpeechModel
 import com.drivevoice.app.ui.home.DriveViewModel
+import com.drivevoice.app.ui.home.PcmCheck
 import com.drivevoice.app.ui.home.SettingsIssue
 import com.drivevoice.app.ui.theme.DrivePage
 
@@ -56,11 +60,17 @@ internal fun DriveSettingsScreen(
     onBack: () -> Unit,
     onPermissions: () -> Unit,
     onPair: () -> Unit,
+    onAudioCheck: () -> Unit,
 ) {
+    val pcmCheck by viewModel.pcmCompatibility.collectAsStateWithLifecycle()
+    val speechModel by viewModel.offlineSpeechModel.collectAsStateWithLifecycle()
+    val checkingSpeechModel by viewModel.checkingOfflineSpeech.collectAsStateWithLifecycle()
     var addingVip by rememberSaveable { mutableStateOf(false) }
     var showingPrivacy by rememberSaveable { mutableStateOf(false) }
     DrivePage(stringResource(R.string.drive_settings), onBack) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 20.dp)) {
+            TextButton(onClick = onAudioCheck) { Text(stringResource(R.string.audio_check_title)) }
+            SettingsDivider()
             SettingsHeading(R.string.settings_headset)
             SettingsHint(R.string.settings_background_read_only)
             if (!devices.permissionGranted) {
@@ -117,6 +127,29 @@ internal fun DriveSettingsScreen(
                 viewModel.setHandsFree(it)
             }
             if (!hasMicrophoneAccess) SettingsHint(R.string.reply_requirements)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                TextButton(onClick = { viewModel.checkOfflineSpeech() }, enabled = !status.active && !checkingSpeechModel) {
+                    Text(stringResource(R.string.speech_model_check))
+                }
+                val modelMessage = if (checkingSpeechModel) R.string.speech_model_checking else when (speechModel) {
+                    OfflineSpeechModel.READY -> R.string.speech_model_ready
+                    OfflineSpeechModel.DOWNLOADABLE -> R.string.speech_model_missing
+                    OfflineSpeechModel.PENDING -> R.string.speech_model_pending
+                    OfflineSpeechModel.UNSUPPORTED -> R.string.speech_model_unsupported
+                    OfflineSpeechModel.NO_ENGINE -> R.string.speech_model_no_engine
+                    OfflineSpeechModel.CHECK_UNAVAILABLE -> R.string.speech_model_no_check
+                    OfflineSpeechModel.CHECK_FAILED -> R.string.speech_model_check_failed
+                    OfflineSpeechModel.DOWNLOAD_FAILED -> R.string.speech_model_download_failed
+                    null -> null
+                }
+                if (modelMessage != null) SettingsHint(modelMessage)
+                if (speechModel == OfflineSpeechModel.DOWNLOADABLE || speechModel == OfflineSpeechModel.DOWNLOAD_FAILED) {
+                    TextButton(
+                        onClick = { viewModel.checkOfflineSpeech(download = true) },
+                        enabled = !status.active && !checkingSpeechModel,
+                    ) { Text(stringResource(R.string.speech_model_download)) }
+                }
+            }
             if (config.handsFree) {
                 SettingSwitch(
                     stringResource(R.string.reply_headset_only), config.headsetOnlyReplies, !status.active,
@@ -126,8 +159,37 @@ internal fun DriveSettingsScreen(
                 if (config.headsetOnlyReplies && !devices.permissionGranted) {
                     SettingsHint(R.string.reply_bluetooth_permission)
                 }
-                SettingSwitch(stringResource(R.string.reply_auto_send), config.autoSend, hasMicrophoneAccess && !status.active) {
-                    viewModel.setAutoSend(it)
+                SettingsHeading(R.string.reply_mode_title)
+                Column(Modifier.selectableGroup()) {
+                    ChoiceRow(stringResource(R.string.reply_mode_text), config.replyMode == ReplyMode.TEXT, !status.active) {
+                        viewModel.setReplyMode(ReplyMode.TEXT)
+                    }
+                    ChoiceRow(stringResource(R.string.reply_mode_recording), config.replyMode == ReplyMode.RECORDING, !status.active) {
+                        viewModel.setReplyMode(ReplyMode.RECORDING)
+                    }
+                }
+                SettingSwitch(stringResource(R.string.reply_filter), config.filterReplies, !status.active, viewModel::setFilterReplies)
+                if (config.replyMode == ReplyMode.TEXT) {
+                    SettingSwitch(stringResource(R.string.reply_auto_send), config.autoSend, hasMicrophoneAccess && !status.active) {
+                        viewModel.setAutoSend(it)
+                    }
+                    if (config.autoSend || config.filterReplies) {
+                        SettingsHint(
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) R.string.reply_pcm_requires_android_13
+                            else when (pcmCheck) {
+                                PcmCheck.UNTESTED -> R.string.reply_pcm_check_hint
+                                PcmCheck.RUNNING -> R.string.reply_pcm_checking
+                                PcmCheck.VERIFIED -> R.string.reply_pcm_verified
+                                PcmCheck.UNAVAILABLE -> R.string.reply_pcm_unavailable
+                            },
+                        )
+                    }
+                } else SettingsHint(R.string.reply_mode_recording_hint)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && config.replyMode == ReplyMode.TEXT) {
+                    TextButton(
+                        onClick = viewModel::verifyPcm,
+                        enabled = hasMicrophoneAccess && !status.active && pcmCheck != PcmCheck.RUNNING,
+                    ) { Text(stringResource(R.string.reply_pcm_check)) }
                 }
             }
             if (status.active) {
@@ -253,4 +315,16 @@ private fun SettingsHint(label: Int) {
 @Composable
 private fun SettingsDivider() {
     HorizontalDivider(Modifier.padding(vertical = 16.dp), color = Color.White.copy(alpha = 0.12f))
+}
+
+@Composable
+private fun ChoiceRow(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected, onClick = null, enabled = enabled)
+        Text(label, Modifier.padding(start = 12.dp))
+    }
 }

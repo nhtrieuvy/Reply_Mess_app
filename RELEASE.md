@@ -1,12 +1,18 @@
-# DriveVoice 1.0.1
+# DriveVoice 1.0.7
 
-Android App Bundle cho Google Play, mã ứng dụng `com.drivevoice.app`, `versionCode 3`, `targetSdk 36`, `minSdk 26`. Bản release bật R8 và thu gọn tài nguyên. Kiểm tra mã ứng dụng trong Play Console trước lần đăng đầu tiên và tăng `versionCode` nếu số 3 đã được dùng.
+Android App Bundle cho Google Play, mã ứng dụng `com.drivevoice.app`, `versionCode 9`, `targetSdk 36`, `minSdk 26`. Bản release bật R8 và thu gọn tài nguyên. Kiểm tra mã ứng dụng trong Play Console trước lần đăng đầu tiên và tăng `versionCode` nếu số 9 đã được dùng.
 
 ## Đóng gói và ký
 
 ```powershell
 .\gradlew.bat :app:bundleRelease :app:assembleRelease :app:lintRelease :app:testReleaseUnitTest
 .\gradlew.bat :app:connectedDebugAndroidTest
+```
+
+Trên thiết bị đã cài giọng đọc và mô hình nhận diện tiếng Việt ngoại tuyến, chạy thêm ca xác nhận bằng tín hiệu tổng hợp. Ca này đưa PCM vào bộ nhận diện và dùng tiếng gió mô phỏng trong cửa sổ xác nhận.
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.drivevoicePcmDeviceTest=true
 ```
 
 Gradle tạo `app/build/outputs/bundle/release/app-release.aab` và `app/build/outputs/mapping/release/mapping.txt`. Lưu bản mapping cùng số phiên bản để giải mã stack trace của bản đã phát hành.
@@ -29,9 +35,17 @@ Khi chưa cung cấp các biến này, Gradle tạo AAB chưa ký. Kiểm tra ch
 - [ ] Khi thông báo bị xóa trong 4 giây gom tin, ứng dụng phải bỏ qua tin đó. Khi xóa lúc TTS đang đọc, lúc đọc lại bản nháp hoặc trước lệnh gửi, thử xác nhận lại và kiểm tra tài khoản nhận không có tin gửi ngoài ý muốn.
 - [ ] Ngắt tai nghe đang chọn ở từng bước đọc, ghi âm và xác nhận. Kiểm tra phiên dừng, âm thanh nền được hoàn lại, bản nháp biến mất và không có tác vụ gửi mới. Trên Android 13 trở lên, đổi đầu ra sang loa trong lượt đọc và kiểm tra phát bị ngắt khi ứng dụng nhận ra tuyến đã đổi.
 - [ ] Tắt mạng sau khi đã nhận tin, dùng giọng đọc và bộ nhận diện đã cài. So sánh với lúc thiếu dữ liệu ngôn ngữ. Khi ứng dụng nhắn tin chưa có mạng, DriveVoice chỉ báo đã chuyển trả lời nếu Android chấp nhận thao tác. Kiểm tra trạng thái phát đi trong chính ứng dụng nhắn tin.
-- [ ] Thử **Gửi**, **Hủy**, **Đọc lại**, nút tai nghe, nhiễu gió và tắt micrô giữa lượt. Khi tự gửi bật, cần tín hiệu im lặng từ bộ nhận diện. Lỗi nhận diện, mất focus hoặc cửa sổ hết hạn mà thiếu tín hiệu im lặng đều bỏ bản nháp.
+- [ ] Thử **Gửi**, **Hủy**, **Đọc lại**, nút tai nghe, nhiễu gió và tắt micrô giữa lượt. Trên cấu hình đã xác minh PCM, tự gửi văn bản cần 4 giây liên tiếp không có giọng người sau lọc trong cửa sổ tối đa 8 giây, sau đó chờ kết quả nhận diện tối đa 700 ms. Thử lệnh **Hủy** nói nhỏ sát hạn. Lỗi nhận diện, mất focus hoặc thiếu bằng chứng im lặng đều bỏ bản nháp.
+- [ ] Mở **Cài đặt → Kiểm tra âm thanh**. Thử thiết bị tích hợp, tai nghe Bluetooth có mic, thiết bị Bluetooth chỉ phát nhạc và thiết bị USB hoặc có dây nếu được liệt kê. Đối chiếu tuyến thực tế, thử loa riêng, thu đủ 5 giây và kết thúc sớm. Thử từ chối quyền, ngắt thiết bị, rời màn hình và mở mục kiểm tra khi Drive Mode đang chạy.
+- [ ] Trên cả micrô điện thoại và Bluetooth, đọc một câu trả lời dài vài giây. Kiểm tra DriveVoice phát trọn bản nháp qua tuyến đã dùng để đọc tin, rồi mới báo micrô sẵn sàng xác nhận. Thử lệnh **Gửi** gần cuối cửa sổ bốn giây. Nếu lượt bị gián đoạn, dùng `adb logcat -d -s 'DriveVoiceAudio:W' '*:S'` để phân biệt lỗi tuyến phát với lỗi nhận diện. Các dòng chẩn đoán này không chứa nội dung tin hoặc bản nháp.
 - [ ] Thử chế độ micrô điện thoại khi quyền Thiết bị ở gần bị từ chối, với tai nghe đã lưu đang ngắt và khi chỉ kết nối Bluetooth để phát nhạc. Thử lại với micrô tai nghe khả dụng, xác nhận nguồn thu thực tế và kiểm tra tự gửi trên cả hai nguồn.
 - [ ] Thử tắt quyền thông báo, khởi động lại ứng dụng, tự bật từ nền trên OEM mục tiêu, ngắt tai nghe và hết 30 phút không xử lý tin. Kiểm tra **Dừng đọc** trên thông báo. Android hoặc OEM có thể yêu cầu mở ứng dụng để bắt đầu phiên.
+
+## Nghiệm thu lọc tiếng ồn trên thiết bị thật
+
+- [ ] Phát lại cùng mẫu lời nói và nhiễu ở vị trí mic cố định. So sánh bản gốc, RNNoise và một lượt thu riêng có bật NoiseSuppressor của Android nếu thiết bị hỗ trợ. Thử phòng yên, gió đều, gió giật, động cơ, còi và người nói bên cạnh. Ghi lại độ rõ của âm đầu, âm cuối và lỗi nhận ba lệnh theo từng thiết bị.
+- [ ] Với mỗi cấu hình muốn bật lọc trong Drive Mode, chạy nhận diện vi-VN ngoại tuyến từ nguồn PCM có câu kiểm tra biết trước và xác minh bộ nhận diện không lấy một nguồn khác. So sánh kết quả theo từng mẫu và kiểm tra thời gian xác nhận.
+- [ ] Với mỗi ứng dụng muốn bật gửi bản ghi, xác nhận thao tác trả lời trên thông báo thật hỗ trợ MIME âm thanh, chuyển vào đúng cuộc trò chuyện thử và nghe trên máy nhận. Ghi nhận trường hợp thông báo bị thu hồi, mất tuyến, lỗi tệp và hai lần bấm nút sát nhau. Chỉ mở sản xuất sau khi các ca lỗi đều không gửi ngoài ý muốn.
 
 ## Hồ sơ Play Console
 
@@ -50,4 +64,4 @@ Khi chưa cung cấp các biến này, Gradle tạo AAB chưa ký. Kiểm tra ch
 
 **Mô tả:** DriveVoice đọc tin nhắn mới từ những ứng dụng bạn chọn. Dùng bộ lọc VIP để chỉ nghe các cuộc trò chuyện quan trọng. Khi tai nghe Bluetooth và nhận diện tiếng Việt ngoại tuyến khả dụng, bạn có thể đọc lại bản nháp và dùng lệnh giọng nói để xác nhận trả lời. Khả năng trả lời phụ thuộc vào thao tác mà ứng dụng nhắn tin gốc cung cấp.
 
-**Ghi chú phiên bản:** Drive Mode màn hình OLED, bộ lọc ứng dụng và VIP, giọng đọc tiếng Việt ngoại tuyến và trả lời rảnh tay qua thông báo hỗ trợ. Bản này hỗ trợ chọn chế độ chỉ dùng tai nghe hoặc ưu tiên tai nghe và dùng micrô điện thoại khi cần.
+**Ghi chú phiên bản:** Xác nhận tự gửi văn bản đánh giá giọng nói sau lọc trên thiết bị đã qua phép thử PCM tiếng Việt ngoại tuyến. Mục trả lời có thêm lựa chọn bản ghi âm cho cấu hình ứng dụng nhận đã được xác minh.

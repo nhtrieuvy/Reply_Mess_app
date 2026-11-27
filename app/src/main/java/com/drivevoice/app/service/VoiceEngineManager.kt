@@ -16,9 +16,14 @@ import android.speech.tts.Voice
 import com.drivevoice.app.data.bluetooth.messageAudioAttributes
 import com.drivevoice.app.domain.state.SpeechResult
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.sqrt
 
@@ -52,7 +57,68 @@ internal class VoiceEngineManager @Inject constructor(
             engine.setAudioAttributes(attributes) == TextToSpeech.SUCCESS
     }
 
-    suspend fun speak(text: String, onAmplitude: (Float) -> Unit = {}): SpeechResult {
+    /** Only used for an app-generated challenge. User microphone audio never goes through a file. */
+    suspend fun synthesizeProbe(phrase: String): ShortArray? {
+        val engine = tts ?: return null
+        val id = UUID.randomUUID().toString()
+        val temp = File.createTempFile("speech-check-", ".wav", context.cacheDir)
+        val completed = CompletableDeferred<Boolean>()
+        val pcm = ByteArrayOutputStream()
+        var rate = 0
+        var channels = 0
+        try {
+            engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String) = Unit
+                override fun onDone(utteranceId: String) {
+                    if (utteranceId == id) completed.complete(true)
+                }
+                @Suppress("OVERRIDE_DEPRECATION")
+                override fun onError(utteranceId: String) {
+                    if (utteranceId == id) completed.complete(false)
+                }
+                override fun onBeginSynthesis(utteranceId: String, sampleRateInHz: Int, audioFormat: Int, channelCount: Int) {
+                    if (utteranceId == id && audioFormat == AudioFormat.ENCODING_PCM_16BIT) {
+                        rate = sampleRateInHz
+                        channels = channelCount
+                    }
+                }
+                override fun onAudioAvailable(utteranceId: String, audio: ByteArray) {
+                    if (utteranceId == id && !completed.isCompleted) {
+                        if (pcm.size() + audio.size > 768_000) completed.complete(false) else pcm.write(audio)
+                    }
+                }
+            })
+            if (engine.synthesizeToFile(phrase, android.os.Bundle(), temp, id) != TextToSpeech.SUCCESS ||
+                withTimeoutOrNull(6_000) { completed.await() } != true ||
+                rate !in 8_000..48_000 || channels !in 1..2
+            ) return null
+            val bytes = pcm.toByteArray()
+            try {
+                val input = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                val frames = input.limit() / channels
+                if (frames == 0) return null
+                val result = ShortArray(frames * REPLY_SAMPLE_RATE / rate + REPLY_SAMPLE_RATE / 2)
+                for (index in 0 until result.size - REPLY_SAMPLE_RATE / 2) {
+                    val offset = (index * rate.toLong() / REPLY_SAMPLE_RATE).toInt()
+                    result[index] = input.get(offset * channels)
+                }
+                return result
+            } finally {
+                bytes.fill(0)
+            }
+        } finally {
+            completed.cancel()
+            engine.setOnUtteranceProgressListener(null)
+            engine.stop()
+            temp.delete()
+        }
+    }
+
+    suspend fun speak(
+        text: String,
+        waitForFocus: Boolean = false,
+        onAmplitude: (Float) -> Unit = {},
+    ): SpeechResult {
         val engine = tts ?: return SpeechResult.OFFLINE_VOICE_UNAVAILABLE
         if (!googleEngineInstalled() || engine.voice?.isInstalledVietnamese() != true) {
             return SpeechResult.OFFLINE_VOICE_UNAVAILABLE
@@ -67,9 +133,17 @@ internal class VoiceEngineManager @Inject constructor(
                 if (change < 0) result.complete(SpeechResult.FOCUS_UNAVAILABLE)
             }, handler)
             .build()
-        if (audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            return SpeechResult.FOCUS_UNAVAILABLE
+        var focusGranted = audio.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (!focusGranted && waitForFocus) {
+            // Some recognizers release their own focus after the terminal callback is delivered.
+            repeat(6) {
+                if (!focusGranted) {
+                    delay(100)
+                    focusGranted = audio.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+                }
+            }
         }
+        if (!focusGranted) return SpeechResult.FOCUS_UNAVAILABLE
 
         val envelope = SpeechEnvelope()
         val meter = object : Runnable {

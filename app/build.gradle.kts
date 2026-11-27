@@ -22,13 +22,21 @@ require(uploadSigning.values.all { it == null } || uploadSigning.values.all { !i
 android {
     namespace = "com.drivevoice.app"
     compileSdk = 36
+    ndkVersion = "28.2.13676358"
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 
     defaultConfig {
         applicationId = "com.drivevoice.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0.1"
+        versionCode = 9
+        versionName = "1.0.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
